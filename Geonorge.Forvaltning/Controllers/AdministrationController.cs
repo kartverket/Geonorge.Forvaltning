@@ -22,7 +22,7 @@ namespace Geonorge.Forvaltning.Controllers
         }
 
         [HttpGet(Name = "GetAdministration")]
-        public async void GetAdministration()
+        public async Task<object> GetAdministration()
         {
 
             var model = new DatamodelsForOrganizations
@@ -41,7 +41,7 @@ namespace Geonorge.Forvaltning.Controllers
             };
 
             var supabase = new Supabase.Client(url, key, options);
-            await supabase.From<DatamodelsForOrganizations>().Insert(model);
+            //await supabase.From<DatamodelsForOrganizations>().Insert(model);
             //todo How can i create tables from my app dynamically? https://github.com/orgs/supabase/discussions/3852
             //supabase.Rpc
 
@@ -53,16 +53,41 @@ namespace Geonorge.Forvaltning.Controllers
             using var cmd = new NpgsqlCommand();
             cmd.Connection = con;
 
-            cmd.CommandText = $"DROP TABLE IF EXISTS teachers";
-            await cmd.ExecuteNonQueryAsync();
-            cmd.CommandText = "CREATE TABLE teachers (id SERIAL PRIMARY KEY," +
-                "first_name VARCHAR(255)," +
-                "last_name VARCHAR(255)," +
-                "subject VARCHAR(255)," +
-                "salary INT)";
-            await cmd.ExecuteNonQueryAsync();
+            cmd.CommandText = $"DROP TABLE IF EXISTS bensinstasjoner";
+            //await cmd.ExecuteNonQueryAsync();
+            cmd.CommandText = "CREATE TABLE bensinstasjoner (id SERIAL PRIMARY KEY," +
+                "navn VARCHAR(255)," +
+                "merke VARCHAR(255), bensin boolean )";
+            //await cmd.ExecuteNonQueryAsync();
+            con.Close();
 
+            con = new NpgsqlConnection(
+            connectionString: connectionstring);
+            con.Open();
+            using var cmd2 = new NpgsqlCommand();
+            cmd2.Connection = con;
 
+            cmd2.CommandText = $"SELECT navn,merke,bensin FROM bensinstasjoner";
+
+            await using var reader = await cmd2.ExecuteReaderAsync();
+
+            List<object> items = new List<object>();
+
+            while (await reader.ReadAsync())
+            {            
+                var data= new System.Dynamic.ExpandoObject() as IDictionary<string, Object>;
+
+                for (int i = 0; i < reader.FieldCount; i++) {
+                    var columnName = reader.GetName(i);
+                    var columnDatatype = reader.GetDataTypeName(i); //character varying(255)
+                    var cellValue = reader[i]; 
+                    data.Add(columnName, cellValue);    
+                }
+
+                items.Add(data);
+            }
+
+            return items;
 
         }
     }
