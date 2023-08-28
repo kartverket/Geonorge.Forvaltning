@@ -79,7 +79,7 @@ namespace Geonorge.Forvaltning.Controllers
 
                 for (int i = 0; i < reader.FieldCount; i++) {
                     var columnName = reader.GetName(i);
-                    var columnDatatype = reader.GetDataTypeName(i); //character varying(255)
+                    var columnDatatype = reader.GetDataTypeName(i);
                     var cellValue = reader[i]; 
                     data.Add(columnName, cellValue);    
                 }
