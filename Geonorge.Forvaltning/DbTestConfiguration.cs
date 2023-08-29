@@ -1,4 +1,4 @@
-﻿public class DbConfiguration
+﻿public class DbTestConfiguration
 {
 
     public static string SectionName => "Database";

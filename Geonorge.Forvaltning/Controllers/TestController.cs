@@ -1,3 +1,4 @@
+using Geonorge.Forvaltning.Models.Entity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -8,21 +9,23 @@ namespace Geonorge.Forvaltning.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class AdministrationController : ControllerBase
+    public class TestController : ControllerBase
     {
         
 
-        private readonly ILogger<AdministrationController> _logger;
-        private readonly DbConfiguration _config;
+        private readonly ILogger<TestController> _logger;
+        private readonly DbTestConfiguration _config;
+        private readonly ApplicationContext _context;
 
-        public AdministrationController(ILogger<AdministrationController> logger, IOptions<DbConfiguration> options)
+        public TestController(ILogger<TestController> logger, IOptions<DbTestConfiguration> options, ApplicationContext context)
         {
             _logger = logger;
             _config = options.Value;
+            _context = context;
         }
 
-        [HttpGet(Name = "GetAdministration")]
-        public async Task<object> GetAdministration()
+        [HttpGet(Name = "GetTest")]
+        public async Task<object> GetTest()
         {
 
             var model = new DatamodelsForOrganizations
