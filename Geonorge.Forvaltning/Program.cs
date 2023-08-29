@@ -1,5 +1,6 @@
 using Geonorge.Forvaltning;
 using Geonorge.Forvaltning.Models.Entity;
+using Geonorge.Forvaltning.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -23,8 +24,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.Configure<DbTestConfiguration>(configuration.GetSection(DbTestConfiguration.SectionName));
+builder.Services.Configure<AuthConfiguration>(configuration.GetSection(AuthConfiguration.SectionName));
 
 builder.Services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
+
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddTransient<IAuthService, AuthService>();
+builder.Services.AddTransient<IObjectService, ObjectService>();
 
 var app = builder.Build();
 
@@ -51,10 +57,10 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.Run();
+
 using (var scope = app.Services.CreateScope())
 {
     var dataContext = scope.ServiceProvider.GetRequiredService<ApplicationContext>();
     dataContext.Database.Migrate();
 }
-
-app.Run();
