@@ -11,5 +11,6 @@ namespace Geonorge.Forvaltning.Models.Entity
         [StringLength(255)]
         [Required]
         public string Name { get; set; }
+        public virtual List<ForvaltningsObjektPropertiesMetadata>? ForvaltningsObjektPropertiesMetadata { get; set; }
     }
 }
