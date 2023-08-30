@@ -1,4 +1,5 @@
-﻿using Geonorge.Forvaltning.Services;
+﻿using Geonorge.Forvaltning.Models.Api;
+using Geonorge.Forvaltning.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data;
@@ -45,7 +46,7 @@ namespace Geonorge.Forvaltning.Controllers
         }
 
         [HttpPost(Name = "PostObject")]
-        public async Task<IActionResult> PostObject(object objekt)
+        public async Task<IActionResult> PostObject(ObjectDefinition objekt)
         {
             try
             {

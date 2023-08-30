@@ -3,6 +3,7 @@ using Geonorge.Forvaltning.Models.Entity;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Geonorge.Forvaltning.Models.Api;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -19,23 +20,56 @@ namespace Geonorge.Forvaltning.Services
             _config = config.Value;
         }
 
-        public async Task<object> AddDefinition(object o)
+        public async Task<object> AddDefinition(ObjectDefinition o)
         {
             User user = await _authService.GetUser();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
+            Models.Entity.ForvaltningsObjektMetadata metadata = new Models.Entity.ForvaltningsObjektMetadata();
+            metadata.Organization = "Kartverket";
+            metadata.Name = o.Name;
+            metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
+            foreach (var item in o.Properties) 
+            {
+                metadata.ForvaltningsObjektPropertiesMetadata.Add( new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType  });
+            }
+            _context.ForvaltningsObjektMetadata.Add(metadata);
+            _context.SaveChanges();
 
-            throw new NotImplementedException();
+            string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,";
+            for (int i = 0; i < o.Properties.Count; i++)
+            {
+                if (o.Properties[i].DataType.Contains("bool"))
+                    sql = sql + " " + o.Properties[i].Name + " boolean";
+                else
+                    sql = sql + " "+ o.Properties[i].Name + " VARCHAR(255)";
+
+                if (i < o.Properties.Count - 1)
+                    sql = sql + " , ";
+
+            }
+            sql = sql + " ) ";
+            var con = new NpgsqlConnection(
+            connectionString: _config.ConnectionString);
+            con.Open();
+            using var cmd = new NpgsqlCommand();
+            cmd.Connection = con;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            con.Close();
+
+            var created = await GetMetadataObject(metadata.Id);
+
+            return new List<object> { created };
         }
 
-        public async Task<List<object>> GetMetadataObject(int id)
+        public async Task<object> GetMetadataObject(int id)
         {
             var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
             if(objekt != null) 
             {
-                //var data = await _context.Database.ExecuteSqlRawAsync(@"SELECT * FROM " + objekt.Name + "");
                 var columnsList = objekt.ForvaltningsObjektPropertiesMetadata.Select(x => x.Name).ToList();
                 var columns = string.Join<string>(",", columnsList);
                 var con = new NpgsqlConnection(
@@ -48,6 +82,7 @@ namespace Geonorge.Forvaltning.Services
 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
+                //todo return header table and columns?
                 List<object> items = new List<object>();
 
                 while (await reader.ReadAsync())
@@ -87,8 +122,8 @@ namespace Geonorge.Forvaltning.Services
 
     public interface IObjectService
     {
-        Task<object> AddDefinition(object o);
+        Task<object> AddDefinition(ObjectDefinition o);
         Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects();
-        Task<List<object>> GetMetadataObject(int id);
+        Task<object> GetMetadataObject(int id);
     }
 }
