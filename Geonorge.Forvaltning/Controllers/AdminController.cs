@@ -18,12 +18,25 @@ namespace Geonorge.Forvaltning.Controllers
             _authService = authService;
         }
 
-        [HttpPost(Name = "PostObject")]
-        public async Task<IActionResult> Get(object o)
+        [HttpGet(Name = "GetMetadataObjects")]
+        public async Task<IActionResult> GetMetadataObjects()
         {
             try
             {
-                return Ok(await _objectService.AddDefinition(o));
+                return Ok(await _objectService.GetMetadataObjects());
+            }
+            catch (Exception ex)
+            {
+            }
+            return BadRequest();
+        }
+
+        [HttpPost(Name = "PostObject")]
+        public async Task<IActionResult> PostObject(object objekt)
+        {
+            try
+            {
+                return Ok(await _objectService.AddDefinition(objekt));
             }
             catch (Exception ex)
             {

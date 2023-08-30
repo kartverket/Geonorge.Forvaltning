@@ -25,10 +25,30 @@ namespace Geonorge.Forvaltning.Services
 
             throw new NotImplementedException();
         }
+
+        public Task<object> GetMetadataObject()
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects()
+        {
+           var objectsList = _context.ForvaltningsObjektMetadata.ToList(); //todo filter organization
+            List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata> objects = new List<Models.Api.ForvaltningsObjektMetadata>();
+            if (objects != null) 
+            {
+                foreach (var objekt in objectsList)
+                    objects.Add( new Models.Api.ForvaltningsObjektMetadata { Id = objekt.Id, Name = objekt.Name });
+
+            }
+            return objects;
+        }
     }
 
     public interface IObjectService
     {
         Task<object> AddDefinition(object o);
+        Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects();
+        Task<object> GetMetadataObject();
     }
 }
