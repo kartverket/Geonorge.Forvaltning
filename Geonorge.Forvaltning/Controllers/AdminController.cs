@@ -31,6 +31,19 @@ namespace Geonorge.Forvaltning.Controllers
             return BadRequest();
         }
 
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetObject(int id)
+        {
+            try
+            {
+                return Ok(await _objectService.GetMetadataObject(id));
+            }
+            catch (Exception ex)
+            {
+            }
+            return NotFound();
+        }
+
         [HttpPost(Name = "PostObject")]
         public async Task<IActionResult> PostObject(object objekt)
         {
