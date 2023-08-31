@@ -38,7 +38,7 @@ namespace Geonorge.Forvaltning.Services
             _context.ForvaltningsObjektMetadata.Add(metadata);
             _context.SaveChanges();
 
-            string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,";
+            string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,"; //Todo make table name unique to avoid conflict?
             for (int i = 0; i < o.Properties.Count; i++)
             {
                 if (o.Properties[i].DataType.Contains("bool"))
@@ -62,7 +62,7 @@ namespace Geonorge.Forvaltning.Services
 
             var created = await GetMetadataObject(metadata.Id);
 
-            return new List<object> { created };
+            return created;
         }
 
         public async Task<object> GetMetadataObject(int id)

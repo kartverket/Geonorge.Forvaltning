@@ -19,7 +19,27 @@ namespace Geonorge.Forvaltning.Controllers
             _authService = authService;
         }
 
-        [HttpGet(Name = "GetMetadataObjects")]
+        [HttpPost("object", Name = "PostObject")]
+        public async Task<IActionResult> PostObject(ObjectDefinition objekt)
+        {
+            try
+            {
+                return Ok(await _objectService.AddDefinition(objekt));
+            }
+            catch (Exception ex)
+            {
+            }
+            return BadRequest();
+        }
+
+        [HttpPost("object/{id:int}", Name = "PostObjectItem")]
+        public async Task<IActionResult> PostObjectItem(int id, ObjectItem item)
+        {
+            //todo map dynamic object to database table
+            throw new NotImplementedException();
+        }
+
+        [HttpGet("objects", Name = "GetMetadataObjects")]
         public async Task<IActionResult> GetMetadataObjects()
         {
             try
@@ -32,7 +52,7 @@ namespace Geonorge.Forvaltning.Controllers
             return BadRequest();
         }
 
-        [HttpGet("{id:int}")]
+        [HttpGet("object/{id:int}")]
         public async Task<IActionResult> GetObject(int id)
         {
             try
@@ -43,19 +63,6 @@ namespace Geonorge.Forvaltning.Controllers
             {
             }
             return NotFound();
-        }
-
-        [HttpPost(Name = "PostObject")]
-        public async Task<IActionResult> PostObject(ObjectDefinition objekt)
-        {
-            try
-            {
-                return Ok(await _objectService.AddDefinition(objekt));
-            }
-            catch (Exception ex)
-            {
-            }
-            return BadRequest();
         }
     }
 }
