@@ -42,6 +42,7 @@ namespace Geonorge.Forvaltning.Services
 
             //Problem create table tablename cannot be parameter. create table bensinstasjon4()  Then possible to create alter table with parameters?
             //columns named are fixed c1,c2,c3 and maby also table t1,t2... ?
+            //validate names, could be problem c# https://www.tutorialsteacher.com/csharp/csharp-variable, json allows almost anything: https://restfulapi.net/valid-json-key-names/
 
             string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,"; //Todo make table name unique to avoid conflict?
             for (int i = 0; i < o.Properties.Count; i++)
