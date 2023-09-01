@@ -40,6 +40,9 @@ namespace Geonorge.Forvaltning.Services
             _context.ForvaltningsObjektMetadata.Add(metadata);
             _context.SaveChanges();
 
+            //Problem create table tablename cannot be parameter. create table bensinstasjon4()  Then possible to create alter table with parameters?
+            //columns named are fixed c1,c2,c3 and maby also table t1,t2... ?
+
             string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,"; //Todo make table name unique to avoid conflict?
             for (int i = 0; i < o.Properties.Count; i++)
             {
