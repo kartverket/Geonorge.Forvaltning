@@ -4,6 +4,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Geonorge.Forvaltning.Models.Api;
+using Newtonsoft.Json;
+using System.Linq;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -65,6 +67,58 @@ namespace Geonorge.Forvaltning.Services
             return created;
         }
 
+        public async Task<object> AddObject(int id, ObjectItem item)
+        {
+            var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+            var columnsList = objekt.ForvaltningsObjektPropertiesMetadata.Select(x => x.Name).ToList();
+            var columns = string.Join<string>(",", columnsList);
+
+            var parameterList = new List<string>();
+            foreach (var col in columnsList)
+                parameterList.Add("@"+ col + "");
+
+            var parameters = string.Join<string>(",", parameterList);
+
+            var data = JsonConvert.DeserializeObject<dynamic>(item.Objekt.ToString());
+
+            var table = objekt.Name; //todo use column for tableName
+
+            var sql = $"INSERT INTO {table} ({columns}) VALUES ({parameters})";
+
+            var con = new NpgsqlConnection(
+            connectionString: _config.ConnectionString);
+            con.Open();
+
+            using var cmd = new NpgsqlCommand();
+
+            foreach (var column in columnsList) 
+            {
+                string field = column;
+                var value = data[field].ToString();
+                if (value == "True")
+                    value = true;
+                cmd.Parameters.AddWithValue("@" + field, value);
+            }
+            try { 
+                cmd.Connection = con;
+                cmd.CommandText = sql;
+
+                cmd.CommandText = sql;
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (NpgsqlException ex) 
+            { 
+            }
+
+
+
+            con.Close();
+
+            return null;
+
+        }
+
         public async Task<object> GetMetadataObject(int id)
         {
             var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
@@ -123,6 +177,7 @@ namespace Geonorge.Forvaltning.Services
     public interface IObjectService
     {
         Task<object> AddDefinition(ObjectDefinition o);
+        Task<object> AddObject(int id, ObjectItem o);
         Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects();
         Task<object> GetMetadataObject(int id);
     }

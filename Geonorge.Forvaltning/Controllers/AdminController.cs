@@ -2,7 +2,12 @@
 using Geonorge.Forvaltning.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
+using Newtonsoft.Json;
+using System.ComponentModel;
 using System.Data;
+using System.Dynamic;
+using System.Text.Json;
 
 namespace Geonorge.Forvaltning.Controllers
 {
@@ -35,8 +40,15 @@ namespace Geonorge.Forvaltning.Controllers
         [HttpPost("object/{id:int}", Name = "PostObjectItem")]
         public async Task<IActionResult> PostObjectItem(int id, ObjectItem item)
         {
-            //todo map dynamic object to database table
-            throw new NotImplementedException();
+            try
+            {
+                return Ok(await _objectService.AddObject(id, item));
+            }
+            catch (Exception ex)
+            {
+            }
+
+            return BadRequest();
         }
 
         [HttpGet("objects", Name = "GetMetadataObjects")]
