@@ -125,6 +125,7 @@ namespace Geonorge.Forvaltning.Services
                 }
 
                 userViewModel.OrganizationName = organization["name"].ToString();
+                userViewModel.OrganizationNumber = organization["orgnr"].ToString();
                 userViewModel.Email = json["baat_email"].ToString();
                 userViewModel.Username = json["user"].ToString();
                 userViewModel.Name = json["baat_name"].ToString();
@@ -161,7 +162,7 @@ namespace Geonorge.Forvaltning.Services
         private User GetTestUser()
         {
             //test data
-            return new User { OrganizationName = "Kartverket", Email = "utvikling@arkitektum.no", Name = "Ola Nordmann", Username = "testbruker" , Roles = new List<string>() { Role.Admin, Role.Editor, "nd.datast1" } };
+            return new User { OrganizationName = "Kartverket", OrganizationNumber = "971040238", Email = "utvikling@arkitektum.no", Name = "Ola Nordmann", Username = "testbruker" , Roles = new List<string>() { Role.Admin, Role.Editor, "nd.datast1" } };
         }
     }
 

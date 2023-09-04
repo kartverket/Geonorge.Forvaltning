@@ -36,33 +36,32 @@ namespace Geonorge.Forvaltning.Services
             {
 
                 Models.Entity.ForvaltningsObjektMetadata metadata = new Models.Entity.ForvaltningsObjektMetadata();
-                metadata.Organization = "Kartverket";
+                metadata.Organization = user.OrganizationNumber;
                 metadata.Name = o.Name;
+                metadata.TableName = "";
                 metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
+                int col = 1;
                 foreach (var item in o.Properties)
                 {
-                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType });
+                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col });
+                    col++;
                 }
                 _context.ForvaltningsObjektMetadata.Add(metadata);
                 _context.SaveChanges();
 
-                //Problem create table tablename cannot be parameter. create table bensinstasjon4()  Then possible to create alter table with parameters?
-                //columns named are fixed c1,c2,c3 and maby also table t1,t2... ?
-                //validate names, could be problem c# https://www.tutorialsteacher.com/csharp/csharp-variable, json allows almost anything: https://restfulapi.net/valid-json-key-names/
+                metadata.TableName = "t_" + metadata.Id.ToString();
+                _context.SaveChanges();
 
-                string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,"; //Todo make table name unique to avoid conflict? Use uuid data type?
-                for (int i = 0; i < o.Properties.Count; i++)
+                string sql = "CREATE TABLE " + metadata.TableName + " (id SERIAL PRIMARY KEY,"; //Todo use uuid data type?
+                foreach(var property in metadata.ForvaltningsObjektPropertiesMetadata)
                 {
-                    if (o.Properties[i].DataType.Contains("bool"))
-                        sql = sql + " " + o.Properties[i].Name + " boolean";
+                    if (property.DataType.Contains("bool"))
+                        sql = sql + " " + property.ColumnName + " boolean,";
                     else
-                        sql = sql + " " + o.Properties[i].Name + " text"; //todo support more data types numeric?
-
-                    if (i < o.Properties.Count - 1)
-                        sql = sql + " , ";
+                        sql = sql + " " + property.ColumnName + " text,"; //todo support more data types numeric?
 
                 }
-                sql = sql + ", geometry geometry  ";
+                sql = sql + " geometry geometry  ";
                 sql = sql + ", updatedate timestamp with time zone  ";
                 sql = sql + ", editor text  ";
                 sql = sql + ", owner_org numeric  ";
@@ -146,7 +145,7 @@ namespace Geonorge.Forvaltning.Services
             var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
             if(objekt != null) 
             {
-                var columnsList = objekt.ForvaltningsObjektPropertiesMetadata.Select(x => x.Name).ToList();
+                var columnsList = objekt.ForvaltningsObjektPropertiesMetadata.Select(x => x.ColumnName).ToList();
                 var columns = string.Join<string>(",", columnsList);
                 var con = new NpgsqlConnection(
                 connectionString: _config.ConnectionString);
@@ -154,7 +153,7 @@ namespace Geonorge.Forvaltning.Services
                 using var cmd = new NpgsqlCommand();
                 cmd.Connection = con;
 
-                cmd.CommandText = $"SELECT {columns} FROM {objekt.Name}";
+                cmd.CommandText = $"SELECT {columns} FROM {objekt.TableName}";
 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -167,7 +166,7 @@ namespace Geonorge.Forvaltning.Services
 
                     for (int i = 0; i < reader.FieldCount; i++)
                     {
-                        var columnName = reader.GetName(i);
+                        var columnName = objekt.ForvaltningsObjektPropertiesMetadata.Where(c => c.ColumnName == reader.GetName(i)).Select(s => s.Name).FirstOrDefault();
                         var columnDatatype = reader.GetDataTypeName(i);
                         var cellValue = reader[i];
                         data.Add(columnName, cellValue);

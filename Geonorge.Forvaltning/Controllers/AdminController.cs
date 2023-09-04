@@ -13,15 +13,17 @@ namespace Geonorge.Forvaltning.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class AdminController : ControllerBase
+    public class AdminController : BaseController
     {
         private readonly IObjectService _objectService;
         private readonly IAuthService _authService;
+        private readonly ILogger<AdminController> _logger;
 
-        public AdminController(IObjectService objectService, IAuthService authService)
+        public AdminController(IObjectService objectService, IAuthService authService, ILogger<AdminController> logger) : base(logger)
         {
             _objectService = objectService;
             _authService = authService;
+            _logger = logger;
         }
 
         [HttpPost("object", Name = "PostObject")]

@@ -12,6 +12,9 @@ namespace Geonorge.Forvaltning.Models.Entity
         [StringLength(255)]
         [Required]
         public string DataType { get; set; }
+        [StringLength(31)]
+        [Required]
+        public string ColumnName { get; set; }
 
         public virtual ForvaltningsObjektMetadata ForvaltningsObjektMetadata { get; set; }
     }
