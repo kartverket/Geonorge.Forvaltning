@@ -2,6 +2,6 @@
 {
     public class ObjectItem
     {
-        public object Objekt { get; set; }
+        public object objekt { get; set; }
     }
 }

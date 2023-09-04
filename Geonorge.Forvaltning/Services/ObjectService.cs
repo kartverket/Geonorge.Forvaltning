@@ -104,15 +104,17 @@ namespace Geonorge.Forvaltning.Services
             var properties = objekt.ForvaltningsObjektPropertiesMetadata.ToList();
 
             var columnsList = properties.Select(x => x.ColumnName).ToList();
+            columnsList.Add("geometry");
             var columns = string.Join<string>(",", columnsList);
 
             var parameterList = new List<string>();
             foreach (var col in columnsList)
                 parameterList.Add("@"+ col + "");
 
+
             var parameters = string.Join<string>(",", parameterList);
 
-            var data = JsonConvert.DeserializeObject<dynamic>(item.Objekt.ToString());
+            var data = JsonConvert.DeserializeObject<dynamic>(item.objekt.ToString());
 
             var table = objekt.TableName;
 
@@ -124,16 +126,24 @@ namespace Geonorge.Forvaltning.Services
 
             using var cmd = new NpgsqlCommand();
 
-            foreach (var column in columnsList) 
+            foreach (var column in columnsList)
             {
                 string field = column;
-                string objectName = properties.Where(p => p.ColumnName == field).Select(s => s.Name).FirstOrDefault();
-                var value = data[objectName].ToString();
-                if (value == "True")
-                    value = true;
-                if (value == "False")
-                    value = false;
-                cmd.Parameters.AddWithValue("@" + field, value);
+                if (column == "geometry")
+                {
+                    var value = data["geometry"].ToString();
+                    cmd.Parameters.AddWithValue("@" + "geometry", value);
+                }
+                else {
+                    string objectName = properties.Where(p => p.ColumnName == field).Select(s => s.Name).FirstOrDefault();
+                    var value = data[objectName].ToString();
+                    if (value == "True")
+                        value = true;
+                    else if (value == "False")
+                        value = false;
+
+                    cmd.Parameters.AddWithValue("@" + field, value);
+                }       
             }
             try { 
                 cmd.Connection = con;
@@ -144,8 +154,6 @@ namespace Geonorge.Forvaltning.Services
             catch (NpgsqlException ex) 
             { 
             }
-
-
 
             con.Close();
 
@@ -166,29 +174,46 @@ namespace Geonorge.Forvaltning.Services
                 using var cmd = new NpgsqlCommand();
                 cmd.Connection = con;
 
-                cmd.CommandText = $"SELECT {columns} FROM {objekt.TableName}";
+                cmd.CommandText = $"SELECT {columns}, ST_AsGeoJSON((geometry),15,0)::json As geometry FROM {objekt.TableName}";
 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
                 //todo return header table and columns?
                 List<object> items = new List<object>();
-
-                while (await reader.ReadAsync())
+                try
                 {
-                    var data = new System.Dynamic.ExpandoObject() as IDictionary<string, Object>;
-
-                    for (int i = 0; i < reader.FieldCount; i++)
+                    while (await reader.ReadAsync())
                     {
-                        var columnName = objekt.ForvaltningsObjektPropertiesMetadata.Where(c => c.ColumnName == reader.GetName(i)).Select(s => s.Name).FirstOrDefault();
-                        var columnDatatype = reader.GetDataTypeName(i);
-                        var cellValue = reader[i];
-                        data.Add(columnName, cellValue);
+                        var data = new System.Dynamic.ExpandoObject() as IDictionary<string, Object>;
+
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            var columnName = objekt.ForvaltningsObjektPropertiesMetadata.Where(c => c.ColumnName == reader.GetName(i)).Select(s => s.Name).FirstOrDefault();
+                            var columnDatatype = reader.GetDataTypeName(i);
+                            if (columnName == null /*&& columnDatatype == "extensions.geometry"*/) 
+                            {
+                                var geometry = reader["geometry"].ToString();
+                                if(geometry != null && geometry != "{}") {
+                                    var geo = JsonConvert.DeserializeObject<System.Dynamic.ExpandoObject>(geometry);
+                                    if(geo != null) 
+                                        data.Add("geometry", geo);
+                                }
+                            }
+                            else { 
+                                var cellValue = reader[i];
+                                data.Add(columnName, cellValue);
+                            }
+
+                        }
+
+                        items.Add(data);
                     }
 
-                    items.Add(data);
+                    return items;
                 }
-
-                return items;
+                catch (NpgsqlException ex)
+                {
+                }
             }
 
             return null;
