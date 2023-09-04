@@ -139,8 +139,6 @@ namespace Geonorge.Forvaltning.Services
                 cmd.Connection = con;
                 cmd.CommandText = sql;
 
-                cmd.CommandText = sql;
-
                 await cmd.ExecuteNonQueryAsync();
             }
             catch (NpgsqlException ex) 
