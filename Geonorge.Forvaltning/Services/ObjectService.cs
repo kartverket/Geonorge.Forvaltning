@@ -174,7 +174,7 @@ namespace Geonorge.Forvaltning.Services
                 using var cmd = new NpgsqlCommand();
                 cmd.Connection = con;
 
-                cmd.CommandText = $"SELECT {columns}, ST_AsGeoJSON((geometry),15,0)::json As geometry FROM {objekt.TableName}";
+                cmd.CommandText = $"SELECT id, {columns}, ST_AsGeoJSON((geometry),15,0)::json As geometry FROM {objekt.TableName}";
 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
@@ -192,11 +192,19 @@ namespace Geonorge.Forvaltning.Services
                             var columnDatatype = reader.GetDataTypeName(i);
                             if (columnName == null /*&& columnDatatype == "extensions.geometry"*/) 
                             {
-                                var geometry = reader["geometry"].ToString();
-                                if(geometry != null && geometry != "{}") {
-                                    var geo = JsonConvert.DeserializeObject<System.Dynamic.ExpandoObject>(geometry);
-                                    if(geo != null) 
-                                        data.Add("geometry", geo);
+                                if(columnDatatype == "integer") 
+                                {
+                                    var idField = reader["id"].ToString();
+                                    data.Add("id", Convert.ToInt16(idField));
+                                }
+                                else 
+                                { 
+                                    var geometry = reader["geometry"].ToString();
+                                    if(geometry != null && geometry != "{}") {
+                                        var geo = JsonConvert.DeserializeObject<System.Dynamic.ExpandoObject>(geometry);
+                                        if(geo != null) 
+                                            data.Add("geometry", geo);
+                                    }
                                 }
                             }
                             else { 
