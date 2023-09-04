@@ -105,6 +105,8 @@ namespace Geonorge.Forvaltning.Services
 
             var columnsList = properties.Select(x => x.ColumnName).ToList();
             columnsList.Add("geometry");
+            columnsList.Add("editor");
+            columnsList.Add("owner_org"); 
             var columns = string.Join<string>(",", columnsList);
 
             var parameterList = new List<string>();
@@ -118,7 +120,7 @@ namespace Geonorge.Forvaltning.Services
 
             var table = objekt.TableName;
 
-            var sql = $"INSERT INTO {table} ({columns}) VALUES ({parameters})";
+            var sql = $"INSERT INTO {table} ({columns}, updatedate) VALUES ({parameters}, CURRENT_TIMESTAMP )";
 
             var con = new NpgsqlConnection(
             connectionString: _config.ConnectionString);
@@ -133,6 +135,16 @@ namespace Geonorge.Forvaltning.Services
                 {
                     var value = data["geometry"].ToString();
                     cmd.Parameters.AddWithValue("@" + "geometry", value);
+                }
+                else if (column == "editor")
+                {
+                    var value = user.Username;
+                    cmd.Parameters.AddWithValue("@" + "editor", value);
+                }
+                else if (column == "owner_org")
+                {
+                    var value = user.OrganizationNumber;
+                    cmd.Parameters.AddWithValue("@" + "owner_org", int.Parse(value));
                 }
                 else {
                     string objectName = properties.Where(p => p.ColumnName == field).Select(s => s.Name).FirstOrDefault();
@@ -190,7 +202,7 @@ namespace Geonorge.Forvaltning.Services
                         {
                             var columnName = objekt.ForvaltningsObjektPropertiesMetadata.Where(c => c.ColumnName == reader.GetName(i)).Select(s => s.Name).FirstOrDefault();
                             var columnDatatype = reader.GetDataTypeName(i);
-                            if (columnName == null /*&& columnDatatype == "extensions.geometry"*/) 
+                            if (columnName == null) 
                             {
                                 if(columnDatatype == "integer") 
                                 {
