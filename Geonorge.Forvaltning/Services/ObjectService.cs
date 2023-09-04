@@ -90,8 +90,20 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<object> AddObject(int id, ObjectItem item)
         {
+            User user = await _authService.GetUser();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
             var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
-            var columnsList = objekt.ForvaltningsObjektPropertiesMetadata.Select(x => x.Name).ToList();
+
+            if (!user.IsAdmin)
+                if(objekt.Organization != user.OrganizationNumber)
+                    throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
+
+            var properties = objekt.ForvaltningsObjektPropertiesMetadata.ToList();
+
+            var columnsList = properties.Select(x => x.ColumnName).ToList();
             var columns = string.Join<string>(",", columnsList);
 
             var parameterList = new List<string>();
@@ -102,7 +114,7 @@ namespace Geonorge.Forvaltning.Services
 
             var data = JsonConvert.DeserializeObject<dynamic>(item.Objekt.ToString());
 
-            var table = objekt.Name; //todo use column for tableName
+            var table = objekt.TableName;
 
             var sql = $"INSERT INTO {table} ({columns}) VALUES ({parameters})";
 
@@ -115,9 +127,12 @@ namespace Geonorge.Forvaltning.Services
             foreach (var column in columnsList) 
             {
                 string field = column;
-                var value = data[field].ToString();
+                string objectName = properties.Where(p => p.ColumnName == field).Select(s => s.Name).FirstOrDefault();
+                var value = data[objectName].ToString();
                 if (value == "True")
                     value = true;
+                if (value == "False")
+                    value = false;
                 cmd.Parameters.AddWithValue("@" + field, value);
             }
             try { 
