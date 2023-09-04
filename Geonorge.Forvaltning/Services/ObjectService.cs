@@ -27,48 +27,66 @@ namespace Geonorge.Forvaltning.Services
             User user = await _authService.GetUser();
 
             if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            if (!user.IsAdmin || !user.HasRole(Role.Editor))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
-            Models.Entity.ForvaltningsObjektMetadata metadata = new Models.Entity.ForvaltningsObjektMetadata();
-            metadata.Organization = "Kartverket";
-            metadata.Name = o.Name;
-            metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
-            foreach (var item in o.Properties) 
+            try
             {
-                metadata.ForvaltningsObjektPropertiesMetadata.Add( new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType  });
-            }
-            _context.ForvaltningsObjektMetadata.Add(metadata);
-            _context.SaveChanges();
 
-            //Problem create table tablename cannot be parameter. create table bensinstasjon4()  Then possible to create alter table with parameters?
-            //columns named are fixed c1,c2,c3 and maby also table t1,t2... ?
-            //validate names, could be problem c# https://www.tutorialsteacher.com/csharp/csharp-variable, json allows almost anything: https://restfulapi.net/valid-json-key-names/
+                Models.Entity.ForvaltningsObjektMetadata metadata = new Models.Entity.ForvaltningsObjektMetadata();
+                metadata.Organization = "Kartverket";
+                metadata.Name = o.Name;
+                metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
+                foreach (var item in o.Properties)
+                {
+                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType });
+                }
+                _context.ForvaltningsObjektMetadata.Add(metadata);
+                _context.SaveChanges();
 
-            string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,"; //Todo make table name unique to avoid conflict?
-            for (int i = 0; i < o.Properties.Count; i++)
-            {
-                if (o.Properties[i].DataType.Contains("bool"))
-                    sql = sql + " " + o.Properties[i].Name + " boolean";
-                else
-                    sql = sql + " "+ o.Properties[i].Name + " VARCHAR(255)";
+                //Problem create table tablename cannot be parameter. create table bensinstasjon4()  Then possible to create alter table with parameters?
+                //columns named are fixed c1,c2,c3 and maby also table t1,t2... ?
+                //validate names, could be problem c# https://www.tutorialsteacher.com/csharp/csharp-variable, json allows almost anything: https://restfulapi.net/valid-json-key-names/
 
-                if (i < o.Properties.Count - 1)
-                    sql = sql + " , ";
+                string sql = "CREATE TABLE " + metadata.Name + " (id SERIAL PRIMARY KEY,"; //Todo make table name unique to avoid conflict? Use uuid data type?
+                for (int i = 0; i < o.Properties.Count; i++)
+                {
+                    if (o.Properties[i].DataType.Contains("bool"))
+                        sql = sql + " " + o.Properties[i].Name + " boolean";
+                    else
+                        sql = sql + " " + o.Properties[i].Name + " text"; //todo support more data types numeric?
 
-            }
-            sql = sql + " ) ";
-            var con = new NpgsqlConnection(
-            connectionString: _config.ConnectionString);
-            con.Open();
-            using var cmd = new NpgsqlCommand();
-            cmd.Connection = con;
-            cmd.CommandText = sql;
-            await cmd.ExecuteNonQueryAsync();
-            con.Close();
+                    if (i < o.Properties.Count - 1)
+                        sql = sql + " , ";
+
+                }
+                sql = sql + ", geometry geometry  ";
+                sql = sql + ", updatedate timestamp with time zone  ";
+                sql = sql + ", editor text  ";
+                sql = sql + ", owner_org numeric  ";
+                sql = sql + ", contributor_org numeric  ";
+
+                sql = sql + " ) ";
+                var con = new NpgsqlConnection(
+                connectionString: _config.ConnectionString);
+                con.Open();
+                using var cmd = new NpgsqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = sql;
+                await cmd.ExecuteNonQueryAsync();
+                con.Close();
 
             var created = await GetMetadataObject(metadata.Id);
+            
 
             return created;
+            }
+            catch (NpgsqlException ex)
+            {
+            }
+            return null;
         }
 
         public async Task<object> AddObject(int id, ObjectItem item)

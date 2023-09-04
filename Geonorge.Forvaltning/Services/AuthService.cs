@@ -161,7 +161,7 @@ namespace Geonorge.Forvaltning.Services
         private User GetTestUser()
         {
             //test data
-            return new User { OrganizationName = "Kartverket", Email = "utvikling@arkitektum.no", Name = "Ola Nordmann", Username = "testbruker" , Roles = new List<string>() { Role.Admin, "nd.datast1" } };
+            return new User { OrganizationName = "Kartverket", Email = "utvikling@arkitektum.no", Name = "Ola Nordmann", Username = "testbruker" , Roles = new List<string>() { Role.Admin, Role.Editor, "nd.datast1" } };
         }
     }
 
