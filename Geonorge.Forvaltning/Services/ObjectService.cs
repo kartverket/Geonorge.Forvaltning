@@ -22,7 +22,7 @@ namespace Geonorge.Forvaltning.Services
             _config = config.Value;
         }
 
-        public async Task<object> AddDefinition(ObjectDefinition o)
+        public async Task<DataObject> AddDefinition(ObjectDefinitionAdd o)
         {
             User user = await _authService.GetUser();
 
@@ -34,7 +34,6 @@ namespace Geonorge.Forvaltning.Services
 
             try
             {
-
                 Models.Entity.ForvaltningsObjektMetadata metadata = new Models.Entity.ForvaltningsObjektMetadata();
                 metadata.Organization = user.OrganizationNumber;
                 metadata.Name = o.Name;
@@ -58,7 +57,7 @@ namespace Geonorge.Forvaltning.Services
                     if (property.DataType.Contains("bool"))
                         sql = sql + " " + property.ColumnName + " boolean,";
                     else
-                        sql = sql + " " + property.ColumnName + " text,"; //todo support more data types numeric?
+                        sql = sql + " " + property.ColumnName + " text,"; //todo support more data types numeric, date?
 
                 }
                 sql = sql + " geometry geometry  ";
@@ -88,7 +87,7 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
-        public async Task<object> AddObject(int id, ObjectItem item)
+        public async Task<DataObject> AddObject(int id, ObjectItem item)
         {
             User user = await _authService.GetUser();
 
@@ -120,7 +119,7 @@ namespace Geonorge.Forvaltning.Services
 
             var table = objekt.TableName;
 
-            var sql = $"INSERT INTO {table} ({columns}, updatedate) VALUES ({parameters}, CURRENT_TIMESTAMP )";
+            var sql = $"INSERT INTO {table} ({columns}, updatedate) VALUES ({parameters}, CURRENT_TIMESTAMP );SELECT CAST(lastval() AS integer)";
 
             var con = new NpgsqlConnection(
             connectionString: _config.ConnectionString);
@@ -161,20 +160,24 @@ namespace Geonorge.Forvaltning.Services
                 cmd.Connection = con;
                 cmd.CommandText = sql;
 
-                await cmd.ExecuteNonQueryAsync();
+                int newID = (int)cmd.ExecuteScalar();
+                var newObject = await GetMetadataObject(id);
+
+                con.Close();
+
+                return newObject;
             }
             catch (NpgsqlException ex) 
             { 
             }
 
-            con.Close();
-
             return null;
 
         }
 
-        public async Task<object> GetMetadataObject(int id)
+        public async Task<DataObject> GetMetadataObject(int id)
         {
+            DataObject dataObject = new DataObject();
             var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
             if(objekt != null) 
             {
@@ -190,7 +193,19 @@ namespace Geonorge.Forvaltning.Services
 
                 await using var reader = await cmd.ExecuteReaderAsync();
 
-                //todo return header table and columns?
+                ObjectDefinition objectDefinition = new ObjectDefinition();
+
+                objectDefinition.Properties = new List<ObjectDefinitionProperty>();
+
+                objectDefinition.Properties.Add(new ObjectDefinitionProperty { Name = "id", DataType = "SERIAL PRIMARY KEY" });
+
+                objectDefinition.Id = objekt.Id;
+                objectDefinition.Name = objekt.Name;
+                foreach (var property in objekt.ForvaltningsObjektPropertiesMetadata)
+                    objectDefinition.Properties.Add(new ObjectDefinitionProperty { Name = property.Name, DataType = property.DataType });
+
+                objectDefinition.Properties.Add(new ObjectDefinitionProperty { Name = "geometry", DataType = "geometry" } );
+
                 List<object> items = new List<object>();
                 try
                 {
@@ -229,7 +244,10 @@ namespace Geonorge.Forvaltning.Services
                         items.Add(data);
                     }
 
-                    return items;
+                    dataObject.definition = objectDefinition;
+                    dataObject.objekt = items;
+
+                    return dataObject;
                 }
                 catch (NpgsqlException ex)
                 {
@@ -255,9 +273,9 @@ namespace Geonorge.Forvaltning.Services
 
     public interface IObjectService
     {
-        Task<object> AddDefinition(ObjectDefinition o);
-        Task<object> AddObject(int id, ObjectItem o);
+        Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
+        Task<DataObject> AddObject(int id, ObjectItem o);
         Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects();
-        Task<object> GetMetadataObject(int id);
+        Task<DataObject> GetMetadataObject(int id);
     }
 }

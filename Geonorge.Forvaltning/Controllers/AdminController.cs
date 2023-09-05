@@ -27,7 +27,7 @@ namespace Geonorge.Forvaltning.Controllers
         }
 
         [HttpPost("object", Name = "PostObject")]
-        public async Task<IActionResult> PostObject(ObjectDefinition objekt)
+        public async Task<IActionResult> PostObject(ObjectDefinitionAdd objekt)
         {
             try
             {

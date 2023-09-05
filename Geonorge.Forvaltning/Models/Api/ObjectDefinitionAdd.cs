@@ -2,9 +2,8 @@
 
 namespace Geonorge.Forvaltning.Models.Api
 {
-    public class ObjectDefinition
+    public class ObjectDefinitionAdd
     {
-        public int Id { get; set; }
         [Required]
         public string Name { get; set; }
         [Required]
