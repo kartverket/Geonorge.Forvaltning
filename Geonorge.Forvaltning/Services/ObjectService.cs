@@ -228,7 +228,7 @@ namespace Geonorge.Forvaltning.Services
                                 { 
                                     var geometry = reader["geometry"].ToString();
                                     if(geometry != null && geometry != "{}") {
-                                        var geo = JsonConvert.DeserializeObject<System.Dynamic.ExpandoObject>(geometry);
+                                        var geo = geometry;// JsonConvert.DeserializeObject<System.Dynamic.ExpandoObject>(geometry);
                                         if(geo != null) 
                                             data.Add("geometry", geo);
                                     }
