@@ -133,6 +133,8 @@ namespace Geonorge.Forvaltning.Services
                 if (column == "geometry")
                 {
                     var value = data["geometry"].ToString();
+                    if (value == "")
+                        value = DBNull.Value;
                     cmd.Parameters.AddWithValue("@" + "geometry", value);
                 }
                 else if (column == "editor")
