@@ -13,9 +13,9 @@ namespace Geonorge.Forvaltning.Services
     {
         private readonly ApplicationContext _context;
         private readonly IAuthService _authService;
-        private readonly DbTestConfiguration _config;
+        private readonly DbConfiguration _config;
 
-        public ObjectService(ApplicationContext context, IAuthService authService, IOptions<DbTestConfiguration> config)
+        public ObjectService(ApplicationContext context, IAuthService authService, IOptions<DbConfiguration> config)
         {
             _context = context;
             _authService = authService;
@@ -68,7 +68,7 @@ namespace Geonorge.Forvaltning.Services
 
                 sql = sql + " ) ";
                 var con = new NpgsqlConnection(
-                connectionString: _config.ConnectionString);
+                connectionString: _config.ForvaltningApiDatabase);
                 con.Open();
                 using var cmd = new NpgsqlCommand();
                 cmd.Connection = con;
@@ -122,7 +122,7 @@ namespace Geonorge.Forvaltning.Services
             var sql = $"INSERT INTO {table} ({columns}, updatedate) VALUES ({parameters}, CURRENT_TIMESTAMP );SELECT CAST(lastval() AS integer)";
 
             var con = new NpgsqlConnection(
-            connectionString: _config.ConnectionString);
+            connectionString: _config.ForvaltningApiDatabase);
             con.Open();
 
             using var cmd = new NpgsqlCommand();
@@ -186,7 +186,7 @@ namespace Geonorge.Forvaltning.Services
                 var columnsList = objekt.ForvaltningsObjektPropertiesMetadata.Select(x => x.ColumnName).ToList();
                 var columns = string.Join<string>(",", columnsList);
                 var con = new NpgsqlConnection(
-                connectionString: _config.ConnectionString);
+                connectionString: _config.ForvaltningApiDatabase);
                 con.Open();
                 using var cmd = new NpgsqlCommand();
                 cmd.Connection = con;

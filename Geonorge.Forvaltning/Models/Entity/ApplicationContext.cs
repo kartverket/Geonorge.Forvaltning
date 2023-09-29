@@ -6,9 +6,9 @@ namespace Geonorge.Forvaltning.Models.Entity
 {
     public class ApplicationContext : DbContext
     {
-        private readonly DbTestConfiguration _config;
+        private readonly DbConfiguration _config;
 
-        public ApplicationContext(DbContextOptions<ApplicationContext> options, IOptions<DbTestConfiguration> config)
+        public ApplicationContext(DbContextOptions<ApplicationContext> options, IOptions<DbConfiguration> config)
                 : base(options)
         {
             _config = config.Value;
@@ -16,7 +16,7 @@ namespace Geonorge.Forvaltning.Models.Entity
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             
-            options.UseNpgsql(_config.ConnectionString);
+            options.UseNpgsql(_config.ForvaltningApiDatabase);
         }
         public DbSet<ForvaltningsObjektMetadata> ForvaltningsObjektMetadata { get; set; }
         public DbSet<ForvaltningsObjektPropertiesMetadata> ForvaltningsObjektPropertiesMetadata { get; set; }

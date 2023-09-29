@@ -68,7 +68,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-builder.Services.Configure<DbTestConfiguration>(configuration.GetSection(DbTestConfiguration.SectionName));
+builder.Services.Configure<DbConfiguration>(configuration.GetSection(DbConfiguration.SectionName));
 builder.Services.Configure<AuthConfiguration>(configuration.GetSection(AuthConfiguration.SectionName));
 
 builder.Services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
