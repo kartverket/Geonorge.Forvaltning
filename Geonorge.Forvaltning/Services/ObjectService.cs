@@ -203,8 +203,9 @@ namespace Geonorge.Forvaltning.Services
 
                 objectDefinition.Id = objekt.Id;
                 objectDefinition.Name = objekt.Name;
+                objectDefinition.TableName = objekt.TableName;
                 foreach (var property in objekt.ForvaltningsObjektPropertiesMetadata)
-                    objectDefinition.Properties.Add(new ObjectDefinitionProperty { Name = property.Name, DataType = property.DataType });
+                    objectDefinition.Properties.Add(new ObjectDefinitionProperty { Name = property.Name, DataType = property.DataType, ColumnName = property.ColumnName });
 
                 objectDefinition.Properties.Add(new ObjectDefinitionProperty { Name = "geometry", DataType = "geometry" } );
 
