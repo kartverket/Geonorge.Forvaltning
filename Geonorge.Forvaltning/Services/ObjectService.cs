@@ -63,10 +63,14 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + " geometry geometry  ";
                 sql = sql + ", updatedate timestamp with time zone  ";
                 sql = sql + ", editor text  ";
-                sql = sql + ", owner_org numeric  ";
-                sql = sql + ", contributor_org numeric  ";
+                sql = sql + ", owner_org text  ";
+                sql = sql + ", contributor_org text[]  ";
 
-                sql = sql + " ) ";
+                sql = sql + " ); ";
+
+                sql = sql + "alter table "+ metadata.TableName + " enable row level security;";
+                sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org)))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org))));";
+                sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = ANY(" + metadata.TableName + ".contributor_org))))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = ANY(" + metadata.TableName + ".contributor_org)))));";
                 var con = new NpgsqlConnection(
                 connectionString: _config.ForvaltningApiDatabase);
                 con.Open();
