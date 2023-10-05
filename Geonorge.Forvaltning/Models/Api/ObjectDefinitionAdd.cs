@@ -7,7 +7,7 @@ namespace Geonorge.Forvaltning.Models.Api
         [Required]
         public string Name { get; set; }
         [Required]
-        public List<ObjectDefinitionProperty> Properties { get; set; }
+        public List<ObjectDefinitionPropertyAdd> Properties { get; set; }
 
     }
 }
