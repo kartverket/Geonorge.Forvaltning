@@ -266,7 +266,10 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects()
         {
-           var objectsList = _context.ForvaltningsObjektMetadata.ToList(); //todo filter organization
+
+            User user = await _authService.GetUserSupabase();
+
+            var objectsList = _context.ForvaltningsObjektMetadata.Where(o => o.Organization == user.OrganizationNumber).ToList();
             List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata> objects = new List<Models.Api.ForvaltningsObjektMetadata>();
             if (objects != null) 
             {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,15 +20,18 @@ namespace Geonorge.Forvaltning.Services
         private readonly AuthConfiguration _config;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<AuthService> _logger;
+        private readonly DbConfiguration _dbconfig;
 
         public AuthService(
             IOptions<AuthConfiguration> options,
             IHttpContextAccessor httpContextAccessor,
-            ILogger<AuthService> logger)
+            ILogger<AuthService> logger,
+            IOptions<DbConfiguration> dbconfig)
         {
             _config = options.Value;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
+            _dbconfig = dbconfig.Value;
         }
 
         public async Task<User> GetUser()
@@ -44,6 +48,89 @@ namespace Geonorge.Forvaltning.Services
                 /*throw new UnauthorizedAccessException("Manglende eller feil autorisering");*/ user = GetTestUser(); // todo remove
 
                 return user;
+        }
+
+        public async Task<User> GetUserSupabase()
+        {
+            User user = null;
+            _httpContextAccessor.HttpContext.Request.Headers.TryGetValue("Authorization", out var authTokens);
+
+            var authToken = authTokens.SingleOrDefault()?.Replace("Bearer ", "");
+
+            _httpContextAccessor.HttpContext.Request.Headers.TryGetValue("Apikey", out var apiKeys);
+
+            var apikey = apiKeys.SingleOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(authToken) && !string.IsNullOrWhiteSpace(apikey))
+                user = await GetUserSupabase(authToken, apikey);
+
+            if (user == null)
+                /*throw new UnauthorizedAccessException("Manglende eller feil autorisering");*/
+                user = GetTestUser(); // todo remove
+
+            return user;
+        }
+
+
+        private async Task<User> GetUserSupabase(string authToken, string apikey)
+        {
+
+            try
+            {
+                var requestMessage = new HttpRequestMessage(HttpMethod.Get,
+                    "https://amggldnzdsdttwdpjygp.supabase.co/auth/v1/user");
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+                requestMessage.Headers.Add("Apikey", apikey);
+
+                using var response = await _httpClient.SendAsync(requestMessage);
+                response.EnsureSuccessStatusCode();
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+                var userInfo = JObject.Parse(responseBody);
+                var userId = userInfo["identities"].FirstOrDefault()?["user_id"].Value<string>() ?? "";
+
+                if (!string.IsNullOrEmpty(userId))
+                {     
+                     return await GetUserInfoSupabase(userInfo);
+                }
+
+                _logger.LogError($"Could not get user info from token.");
+                return null;
+
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, $"Could not get user info from token.");
+                return null;
+            }
+        }
+
+        private async Task<User> GetUserInfoSupabase(JObject userInfo)
+        {
+            var userId = userInfo["identities"]?.FirstOrDefault()?["user_id"]?.Value<string>() ?? "";
+
+            User user = new User();
+            user.Name = userInfo["user_metadata"]?["name"]?.Value<string>() ?? "";
+            user.Email = userInfo["user_metadata"]?["email"]?.Value<string>() ?? "";
+
+            var sql = "SELECT organization from public.users where id::text = $1 ";
+            var con = new NpgsqlConnection(
+            connectionString: _dbconfig.ForvaltningApiDatabase);
+            con.Open();
+            using var cmd = new NpgsqlCommand();
+            cmd.Parameters.AddWithValue(userId);
+            cmd.Connection = con;
+            cmd.CommandText = sql;
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (reader.HasRows) 
+            {
+                reader.Read();
+                user.OrganizationNumber = reader.GetString(0);
+
+            }
+            con.Close();
+
+            return user;
         }
 
         private async Task<User> GetUserFromToken(string authToken)
@@ -169,5 +256,6 @@ namespace Geonorge.Forvaltning.Services
     public interface IAuthService
     {
         Task<User> GetUser();
+        Task<User> GetUserSupabase();
     }
 }
