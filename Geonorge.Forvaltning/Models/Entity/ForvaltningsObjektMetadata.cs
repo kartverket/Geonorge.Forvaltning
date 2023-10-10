@@ -17,3 +17,26 @@ namespace Geonorge.Forvaltning.Models.Entity
         public virtual List<ForvaltningsObjektPropertiesMetadata>? ForvaltningsObjektPropertiesMetadata { get; set; }
     }
 }
+
+//Todo enable RLS and create policy:
+
+//CREATE POLICY "Metadata" ON "public"."ForvaltningsObjektMetadata"
+
+//AS PERMISSIVE FOR ALL
+
+//TO public
+
+//USING ((EXISTS (SELECT* FROM users WHERE (users.organization = "ForvaltningsObjektMetadata"."Organization"))))
+
+//WITH CHECK((EXISTS (SELECT* FROM users WHERE (users.organization = "ForvaltningsObjektMetadata"."Organization"))))
+
+
+//CREATE POLICY "MetadataProperties" ON "public"."ForvaltningsObjektPropertiesMetadata"
+
+//AS PERMISSIVE FOR ALL
+
+//TO public
+
+//USING ((EXISTS (SELECT* FROM users WHERE (users.organization = "ForvaltningsObjektPropertiesMetadata"."OrganizationNumber"))))
+
+//WITH CHECK((EXISTS (SELECT* FROM users WHERE (users.organization = "ForvaltningsObjektPropertiesMetadata"."OrganizationNumber"))))
