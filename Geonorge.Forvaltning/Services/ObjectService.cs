@@ -42,7 +42,7 @@ namespace Geonorge.Forvaltning.Services
                 int col = 1;
                 foreach (var item in o.Properties)
                 {
-                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col });
+                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber });
                     col++;
                 }
                 _context.ForvaltningsObjektMetadata.Add(metadata);
