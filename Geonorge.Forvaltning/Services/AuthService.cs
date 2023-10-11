@@ -64,9 +64,10 @@ namespace Geonorge.Forvaltning.Services
             if (!string.IsNullOrWhiteSpace(authToken) && !string.IsNullOrWhiteSpace(apikey))
                 user = await GetUserSupabase(authToken, apikey);
 
-            if (user == null)
+            if (user == null) {
                 /*throw new UnauthorizedAccessException("Manglende eller feil autorisering");*/
-                user = GetTestUser(); // todo remove
+                //user = GetTestUser(); // todo remove
+            }
 
             return user;
         }

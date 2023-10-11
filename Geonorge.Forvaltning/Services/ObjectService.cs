@@ -6,6 +6,8 @@ using Npgsql;
 using Geonorge.Forvaltning.Models.Api;
 using Newtonsoft.Json;
 using System.Linq;
+using MimeKit;
+using MailKit.Net.Smtp;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -14,12 +16,14 @@ namespace Geonorge.Forvaltning.Services
         private readonly ApplicationContext _context;
         private readonly IAuthService _authService;
         private readonly DbConfiguration _config;
+        private readonly EmailConfiguration _configEmail;
 
-        public ObjectService(ApplicationContext context, IAuthService authService, IOptions<DbConfiguration> config)
+        public ObjectService(ApplicationContext context, IAuthService authService, IOptions<DbConfiguration> config, IOptions<EmailConfiguration> configEmail)
         {
             _context = context;
             _authService = authService;
             _config = config.Value;
+            _configEmail = configEmail.Value;
         }
 
         public async Task<DataObject> AddDefinition(ObjectDefinitionAdd o)
@@ -279,6 +283,51 @@ namespace Geonorge.Forvaltning.Services
             }
             return objects;
         }
+
+        public async Task<object?> RequestAuthorize()
+        {
+            User user = await _authService.GetUserSupabase();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            if (user == null && string.IsNullOrEmpty(user.OrganizationNumber)) 
+            {
+                try
+                {
+                    MimeMessage message = new MimeMessage();
+                    MailboxAddress from = MailboxAddress.Parse(user.Email);
+                    message.From.Add(from);
+
+                    MailboxAddress to = MailboxAddress.Parse(_configEmail.WebmasterEmail);
+                    message.To.Add(to);
+
+                    message.Subject = "Forespørsel autorisasjon forvaltning.geonorge.no";
+
+
+                    BodyBuilder bodyBuilder = new BodyBuilder();
+                    bodyBuilder.HtmlBody = user.Name + " ønsker tilgang til datasett under forvaltning.geonorge.no";
+
+                    message.Body = bodyBuilder.ToMessageBody();
+
+                    SmtpClient client = new SmtpClient();
+                    client.Connect(_configEmail.SmtpHost);
+
+                    client.Send(message);
+                    client.Disconnect(true);
+                    client.Dispose();
+                }
+
+                catch (Exception ex)
+                {
+
+                }
+
+                return "Forespørsel sendt";
+            }
+
+            return "Forespørsel allerede sendt";
+        }
     }
 
     public interface IObjectService
@@ -287,5 +336,6 @@ namespace Geonorge.Forvaltning.Services
         Task<DataObject> AddObject(int id, ObjectItem o);
         Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects();
         Task<DataObject> GetMetadataObject(int id);
+        Task<object?> RequestAuthorize();
     }
 }

@@ -35,10 +35,26 @@ namespace Geonorge.Forvaltning.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError("Error:", ex);
             }
             return BadRequest();
         }
 
+        [HttpPost("authorize-request", Name = "PostAuthorizeRequest")]
+        public async Task<IActionResult> PostAuthorizeRequest()
+        {
+            try
+            {
+                return Ok(await _objectService.RequestAuthorize());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error:", ex);
+            }
+            return BadRequest();
+        }
+
+        [Obsolete("Use supabase client")]
         [HttpPost("object/{id:int}", Name = "PostObjectItem")]
         public async Task<IActionResult> PostObjectItem(int id, ObjectItem item)
         {
@@ -53,6 +69,7 @@ namespace Geonorge.Forvaltning.Controllers
             return BadRequest();
         }
 
+        [Obsolete("Use supabase client")]
         [HttpGet("objects", Name = "GetMetadataObjects")]
         public async Task<IActionResult> GetMetadataObjects()
         {
@@ -66,6 +83,7 @@ namespace Geonorge.Forvaltning.Controllers
             return BadRequest();
         }
 
+        [Obsolete("Use supabase client")]
         [HttpGet("object/{id:int}")]
         public async Task<IActionResult> GetObject(int id)
         {
