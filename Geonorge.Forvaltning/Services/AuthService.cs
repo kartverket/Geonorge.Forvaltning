@@ -21,17 +21,20 @@ namespace Geonorge.Forvaltning.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<AuthService> _logger;
         private readonly DbConfiguration _dbconfig;
+        private readonly SupabaseConfiguration _supabaseConfig;
 
         public AuthService(
             IOptions<AuthConfiguration> options,
             IHttpContextAccessor httpContextAccessor,
             ILogger<AuthService> logger,
-            IOptions<DbConfiguration> dbconfig)
+            IOptions<DbConfiguration> dbconfig,
+            IOptions<SupabaseConfiguration> supabaseConfig)
         {
             _config = options.Value;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
             _dbconfig = dbconfig.Value;
+            _supabaseConfig = supabaseConfig.Value;
         }
 
         public async Task<User> GetUser()
@@ -79,7 +82,7 @@ namespace Geonorge.Forvaltning.Services
             try
             {
                 var requestMessage = new HttpRequestMessage(HttpMethod.Get,
-                    "https://amggldnzdsdttwdpjygp.supabase.co/auth/v1/user");
+                    _supabaseConfig.Url + "/auth/v1/user");
                 requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
                 requestMessage.Headers.Add("Apikey", apikey);
 
