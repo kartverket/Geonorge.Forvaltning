@@ -322,11 +322,9 @@ namespace Geonorge.Forvaltning.Services
                 {
 
                 }
-
-                return "Forespørsel sendt";
             }
 
-            return "Forespørsel allerede sendt";
+            return "Forespørsel sendt";
         }
     }
 

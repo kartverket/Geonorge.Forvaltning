@@ -126,7 +126,8 @@ namespace Geonorge.Forvaltning.Services
             if (reader.HasRows) 
             {
                 reader.Read();
-                user.OrganizationNumber = reader.GetString(0);
+                if (!reader.IsDBNull(0))
+                    user.OrganizationNumber = reader.GetString(0);
 
             }
             con.Close();
