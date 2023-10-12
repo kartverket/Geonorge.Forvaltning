@@ -291,7 +291,7 @@ namespace Geonorge.Forvaltning.Services
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
-            if (user == null && string.IsNullOrEmpty(user.OrganizationNumber)) 
+            if (user != null && string.IsNullOrEmpty(user.OrganizationNumber)) 
             {
                 try
                 {
