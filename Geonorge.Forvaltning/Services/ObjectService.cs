@@ -101,7 +101,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject> AddObject(int id, ObjectItem item)
         {
-            User user = await _authService.GetUser();
+            User user = await _authService.GetUserSupabase();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
