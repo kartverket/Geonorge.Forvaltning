@@ -60,6 +60,10 @@ namespace Geonorge.Forvaltning.Services
                 {
                     if (property.DataType.Contains("bool"))
                         sql = sql + " " + property.ColumnName + " boolean,";
+                    else if (property.DataType.Contains("numeric"))
+                        sql = sql + " " + property.ColumnName + " numeric,";
+                    else if (property.DataType.Contains("datetime"))
+                        sql = sql + " " + property.ColumnName + " datetime,";
                     else
                         sql = sql + " " + property.ColumnName + " text,"; //todo support more data types numeric, date?
 
