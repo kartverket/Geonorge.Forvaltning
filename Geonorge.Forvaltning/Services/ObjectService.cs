@@ -62,8 +62,8 @@ namespace Geonorge.Forvaltning.Services
                         sql = sql + " " + property.ColumnName + " boolean,";
                     else if (property.DataType.Contains("numeric"))
                         sql = sql + " " + property.ColumnName + " numeric,";
-                    else if (property.DataType.Contains("datetime"))
-                        sql = sql + " " + property.ColumnName + " datetime,";
+                    else if (property.DataType.Contains("timestamp"))
+                        sql = sql + " " + property.ColumnName + " timestamp with time zone,";
                     else
                         sql = sql + " " + property.ColumnName + " text,"; //todo support more data types numeric, date?
 
