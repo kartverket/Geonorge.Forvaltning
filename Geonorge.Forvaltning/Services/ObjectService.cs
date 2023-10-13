@@ -28,12 +28,12 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject> AddDefinition(ObjectDefinitionAdd o)
         {
-            User user = await _authService.GetUser();
+            User user = await _authService.GetUserSupabase();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
-            if (!user.IsAdmin || !user.HasRole(Role.Editor))
+            if (string.IsNullOrEmpty(user.OrganizationNumber))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
             try
@@ -101,7 +101,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject> AddObject(int id, ObjectItem item)
         {
-            User user = await _authService.GetUserSupabase();
+            User user = await _authService.GetUser();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
