@@ -161,11 +161,14 @@ namespace Geonorge.Forvaltning.Services
                 }
                 else {
                     string objectName = properties.Where(p => p.ColumnName == field).Select(s => s.Name).FirstOrDefault();
+                    string objectDataType = properties.Where(p => p.ColumnName == field).Select(s => s.DataType).FirstOrDefault();
                     var value = data[objectName].ToString();
                     if (value == "True")
                         value = true;
                     else if (value == "False")
                         value = false;
+                    if(objectDataType == "numeric")
+                        value =  Double.Parse(value);
 
                     cmd.Parameters.AddWithValue("@" + field, value);
                 }       
