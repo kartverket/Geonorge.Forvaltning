@@ -40,6 +40,20 @@ namespace Geonorge.Forvaltning.Controllers
             return BadRequest();
         }
 
+        [HttpPut("object/{id:int}", Name = "PutObject")]
+        public async Task<IActionResult> PutObject(int id, ObjectDefinitionEdit objekt)
+        {
+            try
+            {
+                return Ok(await _objectService.EditDefinition(id, objekt));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error:", ex);
+            }
+            return BadRequest();
+        }
+
         [HttpPost("authorize-request", Name = "PostAuthorizeRequest")]
         public async Task<IActionResult> PostAuthorizeRequest()
         {

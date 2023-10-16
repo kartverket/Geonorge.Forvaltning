@@ -99,6 +99,17 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
+        public Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt)
+        {
+            //todo
+            //https://www.postgresql.org/docs/current/sql-altertable.html
+            //if ids in database not in input: DROP COLUMN
+            //if id == 0 ADD COLUMN
+            //if objekt.DataType <> DataType => ALTER COLUMN x SET DATA TYPE newDataType
+            //if objekt.Name <> Name: ALTER TABLE table_name RENAME COLUMN old_name TO new_name;
+            throw new NotImplementedException();
+        }
+
         //public async Task<DataObject> AddObject(int id, ObjectItem item)
         //{
         //    User user = await _authService.GetUser();
@@ -338,6 +349,8 @@ namespace Geonorge.Forvaltning.Services
     public interface IObjectService
     {
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
+        Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
+
         //Task<DataObject> AddObject(int id, ObjectItem o);
         //Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects();
         //Task<DataObject> GetMetadataObject(int id);
