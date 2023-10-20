@@ -99,7 +99,7 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
-        public Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt)
+        public async Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt)
         {
             //todo
             //https://www.postgresql.org/docs/current/sql-altertable.html
@@ -107,7 +107,73 @@ namespace Geonorge.Forvaltning.Services
             //if id == 0 ADD COLUMN
             //if objekt.DataType <> DataType => ALTER COLUMN x SET DATA TYPE newDataType
             //if objekt.Name <> Name: ALTER TABLE table_name RENAME COLUMN old_name TO new_name;
-            throw new NotImplementedException();
+
+            User user = await _authService.GetUserSupabase();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            if (string.IsNullOrEmpty(user.OrganizationNumber))
+                throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
+
+            try
+            {
+                var current = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+                if (current == null) 
+                {
+                    throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
+                }
+
+                if(current.Name != objekt.Name) { 
+                    current.Name = objekt.Name;
+                    _context.SaveChanges();
+                }
+
+                var currentProperties = current.ForvaltningsObjektPropertiesMetadata.Select(y => y.Id).ToList();
+                var changedProperties = objekt.Properties.Where(z => z.Id > 0).Select(n => n.Id).ToList();
+
+                var itemsToRemove = currentProperties.Where(x => !changedProperties.Any(z => z.Value == x)).ToList();
+
+                foreach(var itemToRemove in itemsToRemove) 
+                {
+                    //Get columnName
+                    var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == itemToRemove).Select(co => co.ColumnName);
+                    //DROP COLUMN 
+                    var sql = "ALTER TABLE "+ current.TableName + " DROP COLUMN "+ columnName + ";";
+                    var con = new NpgsqlConnection(
+                    connectionString: _config.ForvaltningApiDatabase);
+                    con.Open();
+                    using var cmd = new NpgsqlCommand();
+                    cmd.Connection = con;
+                    cmd.CommandText = sql;
+                    await cmd.ExecuteNonQueryAsync();
+                    con.Close();
+                    //delete row from ForvaltningsObjektPropertiesMetadata
+                    var itemToDelete = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == itemToRemove).Single();
+                    _context.ForvaltningsObjektPropertiesMetadata.Remove(itemToDelete);
+                    _context.SaveChanges();
+                }
+
+                foreach(var item in objekt.Properties) 
+                {
+                    if(item.Id == 0) 
+                    {
+                        //todo add column
+                    }
+                    else 
+                    {
+                        //todo change name and/or datatype 
+                    }
+                }
+
+
+            }
+            catch (NpgsqlException ex)
+            {
+            }
+
+            return null;
+
         }
 
         //public async Task<DataObject> AddObject(int id, ObjectItem item)
