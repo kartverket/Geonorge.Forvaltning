@@ -223,11 +223,10 @@ namespace Geonorge.Forvaltning.Services
                             con.Close();
 
                             var attributes = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).FirstOrDefault();
-                            if (item.Name != attributes.Name)
-                            {
-                                attributes.DataType = item.DataType;
-                                _context.SaveChanges();
-                            }
+          
+                            attributes.DataType = item.DataType;
+                            _context.SaveChanges();
+
                         }
                         //Property name has changed?
                         var property = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).FirstOrDefault();
