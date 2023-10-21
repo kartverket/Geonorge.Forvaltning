@@ -160,7 +160,27 @@ namespace Geonorge.Forvaltning.Services
 
                     if (item.Id == 0) 
                     {
-                        var columnName = "todo";
+
+                        //Get last column number
+                        var sqlC = "select CAST(replace(\"ColumnName\",'c_','') as int) as num from \"ForvaltningsObjektPropertiesMetadata\" where \"ForvaltningsObjektMetadataId\" = $1 order by CAST(replace(\"ColumnName\", 'c_', '') as int) desc";
+                        var conC = new NpgsqlConnection(
+                        connectionString: _config.ForvaltningApiDatabase);
+                        conC.Open();
+                        using var cmdC = new NpgsqlCommand();
+                        cmdC.Connection = conC;
+                        cmdC.CommandText = sqlC;
+                        cmdC.Parameters.AddWithValue(current.Id);
+
+                        var reader = await cmdC.ExecuteReaderAsync();
+
+                        await reader.ReadAsync();
+
+                        var lastColumn = reader.GetInt32(0);
+
+                        conC.Close();
+
+
+                        var columnName = "c_" + lastColumn + 1;
                            
                         var sql = "ALTER TABLE " + current.TableName + " ADD COLUMN " + columnName + " " + sqlDataType + ";";
                         var con = new NpgsqlConnection(
