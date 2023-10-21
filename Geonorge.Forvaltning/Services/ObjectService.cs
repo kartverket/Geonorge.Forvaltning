@@ -65,7 +65,7 @@ namespace Geonorge.Forvaltning.Services
                     else if (property.DataType.Contains("timestamp"))
                         sql = sql + " " + property.ColumnName + " timestamp with time zone,";
                     else
-                        sql = sql + " " + property.ColumnName + " text,"; //todo support more data types numeric, date?
+                        sql = sql + " " + property.ColumnName + " text,";
 
                 }
                 sql = sql + " geometry geometry  ";
@@ -101,13 +101,6 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt)
         {
-            //todo
-            //https://www.postgresql.org/docs/current/sql-altertable.html
-            //if ids in database not in input: DROP COLUMN
-            //if id == 0 ADD COLUMN
-            //if objekt.DataType <> DataType => ALTER COLUMN x SET DATA TYPE newDataType
-            //if objekt.Name <> Name: ALTER TABLE table_name RENAME COLUMN old_name TO new_name;
-
             User user = await _authService.GetUserSupabase();
 
             if (user == null)
@@ -156,13 +149,76 @@ namespace Geonorge.Forvaltning.Services
 
                 foreach(var item in objekt.Properties) 
                 {
-                    if(item.Id == 0) 
+
+                    var sqlDataType = "text";
+                    if (item.DataType.Contains("bool"))
+                        sqlDataType = "boolean";
+                    else if (item.DataType.Contains("numeric"))
+                        sqlDataType = "numeric";
+                    else if (item.DataType.Contains("timestamp"))
+                        sqlDataType = "timestamp with time zone";
+
+                    if (item.Id == 0) 
                     {
-                        //todo add column
+                        var columnName = "todo";
+                           
+                        var sql = "ALTER TABLE " + current.TableName + " ADD COLUMN " + columnName + " " + sqlDataType + ";";
+                        var con = new NpgsqlConnection(
+                        connectionString: _config.ForvaltningApiDatabase);
+                        con.Open();
+                        using var cmd = new NpgsqlCommand();
+                        cmd.Connection = con;
+                        cmd.CommandText = sql;
+                        await cmd.ExecuteNonQueryAsync();
+                        con.Close();
+
+                        //add columnName to metadata
+                        current.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata 
+                        {
+                            Name = item.Name,
+                            OrganizationNumber = user.OrganizationNumber,
+                            DataType = item.DataType,
+                            ColumnName = columnName,
+                        });
+
+                        _context.SaveChanges();
                     }
                     else 
                     {
-                        //todo change name and/or datatype 
+                        //https://www.postgresql.org/docs/current/sql-altertable.html
+
+                        //Datatype has changed?
+                        var dataType = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).Select(co => co.DataType).FirstOrDefault();
+                        var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).Select(co => co.ColumnName).FirstOrDefault();
+                        if (dataType != item.DataType) 
+                        {
+                            var sql = "ALTER TABLE " + current.TableName + " ALTER COLUMN " + columnName + " SET DATA TYPE "+ sqlDataType + ";";
+                            var con = new NpgsqlConnection(
+                            connectionString: _config.ForvaltningApiDatabase);
+                            con.Open();
+                            using var cmd = new NpgsqlCommand();
+                            cmd.Connection = con;
+                            cmd.CommandText = sql;
+                            await cmd.ExecuteNonQueryAsync();
+                            con.Close();
+
+                            var attributes = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).FirstOrDefault();
+                            if (item.Name != attributes.Name)
+                            {
+                                attributes.DataType = item.DataType;
+                                _context.SaveChanges();
+                            }
+                        }
+                        //Property name has changed?
+                        var property = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).FirstOrDefault();
+                        if (item.Name != property.Name)
+                        {
+                            property.Name = item.Name;
+                            _context.SaveChanges();
+                        }
+
+
+
                     }
                 }
 
