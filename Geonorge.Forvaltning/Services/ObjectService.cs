@@ -130,7 +130,7 @@ namespace Geonorge.Forvaltning.Services
                 foreach(var itemToRemove in itemsToRemove) 
                 {
                     //Get columnName
-                    var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == itemToRemove).Select(co => co.ColumnName);
+                    var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == itemToRemove).Select(co => co.ColumnName).FirstOrDefault();
                     //DROP COLUMN 
                     var sql = "ALTER TABLE "+ current.TableName + " DROP COLUMN "+ columnName + ";";
                     var con = new NpgsqlConnection(
@@ -158,7 +158,7 @@ namespace Geonorge.Forvaltning.Services
                     else if (item.DataType.Contains("timestamp"))
                         sqlDataType = "timestamp with time zone";
 
-                    if (item.Id == 0) 
+                    if (item.Id == null || item.Id == 0) 
                     {
 
                         //Get last column number
@@ -180,7 +180,7 @@ namespace Geonorge.Forvaltning.Services
                         conC.Close();
 
 
-                        var columnName = "c_" + lastColumn + 1;
+                        var columnName = "c_" + (lastColumn + 1);
                            
                         var sql = "ALTER TABLE " + current.TableName + " ADD COLUMN " + columnName + " " + sqlDataType + ";";
                         var con = new NpgsqlConnection(
