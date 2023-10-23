@@ -59,6 +59,14 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer"
     });
 
+    options.AddSecurityDefinition("Apikey", new OpenApiSecurityScheme()
+    {
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Name = "Apikey",
+        Description = "Supabase ANON KEY",
+    });
+
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -76,6 +84,19 @@ builder.Services.AddSwaggerGen(options =>
             new List<string>()
         }
     });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Apikey" }
+            },
+            new string[] { }
+        }
+    });
+
+
 });
 
 builder.Services.Configure<DbConfiguration>(configuration.GetSection(DbConfiguration.SectionName));
