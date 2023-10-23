@@ -35,9 +35,13 @@ namespace Geonorge.Forvaltning.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error:", ex);
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
             }
-            return BadRequest();
         }
 
         [HttpPut("object/{id:int}", Name = "PutObject")]
@@ -49,9 +53,13 @@ namespace Geonorge.Forvaltning.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error:", ex);
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
             }
-            return BadRequest();
         }
 
         [HttpDelete("object/{id:int}", Name = "DeleteObject")]
@@ -63,9 +71,13 @@ namespace Geonorge.Forvaltning.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error:", ex);
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
             }
-            return BadRequest();
         }
 
         [HttpPost("authorize-request", Name = "PostAuthorizeRequest")]
@@ -77,9 +89,13 @@ namespace Geonorge.Forvaltning.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error:", ex);
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
             }
-            return BadRequest();
         }
 
         //[ApiExplorerSettings(IgnoreApi = true)]

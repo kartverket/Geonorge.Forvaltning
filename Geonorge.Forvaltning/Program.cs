@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
 using Serilog;
+using LoggingWithSerilog.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -115,6 +116,7 @@ app.UseSwaggerUI(options =>
     options.RoutePrefix = "docs";
 });
 
+app.UseMiddleware(typeof(ExceptionHandlingMiddleware));
 
 app.UseHttpsRedirection();
 

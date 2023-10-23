@@ -17,13 +17,15 @@ namespace Geonorge.Forvaltning.Services
         private readonly IAuthService _authService;
         private readonly DbConfiguration _config;
         private readonly EmailConfiguration _configEmail;
+        private readonly ILogger<ObjectService> _logger;
 
-        public ObjectService(ApplicationContext context, IAuthService authService, IOptions<DbConfiguration> config, IOptions<EmailConfiguration> configEmail)
+        public ObjectService(ApplicationContext context, IAuthService authService, IOptions<DbConfiguration> config, IOptions<EmailConfiguration> configEmail, ILogger<ObjectService> logger)
         {
             _context = context;
             _authService = authService;
             _config = config.Value;
             _configEmail = configEmail.Value;
+            _logger = logger;
         }
 
         public async Task<DataObject> AddDefinition(ObjectDefinitionAdd o)
@@ -95,6 +97,11 @@ namespace Geonorge.Forvaltning.Services
             }
             catch (NpgsqlException ex)
             {
+                _logger.LogError("Database error", ex);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("Error", e);
             }
             return null;
         }
@@ -245,6 +252,11 @@ namespace Geonorge.Forvaltning.Services
             }
             catch (NpgsqlException ex)
             {
+                _logger.LogError("Database error", ex);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("Error", e);
             }
 
             return null;
@@ -288,6 +300,11 @@ namespace Geonorge.Forvaltning.Services
             }
             catch (NpgsqlException ex)
             {
+                _logger.LogError("Database error", ex);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("Error", e);
             }
 
             return null;
