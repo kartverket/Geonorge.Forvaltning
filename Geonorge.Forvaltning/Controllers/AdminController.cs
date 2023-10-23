@@ -54,6 +54,20 @@ namespace Geonorge.Forvaltning.Controllers
             return BadRequest();
         }
 
+        [HttpDelete("object/{id:int}", Name = "DeleteObject")]
+        public async Task<IActionResult> DeleteObject(int id)
+        {
+            try
+            {
+                return Ok(await _objectService.DeleteObject(id));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error:", ex);
+            }
+            return BadRequest();
+        }
+
         [HttpPost("authorize-request", Name = "PostAuthorizeRequest")]
         public async Task<IActionResult> PostAuthorizeRequest()
         {

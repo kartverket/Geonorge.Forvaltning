@@ -251,6 +251,49 @@ namespace Geonorge.Forvaltning.Services
 
         }
 
+        public async Task<object?> DeleteObject(int id)
+        {
+
+            User user = await _authService.GetUserSupabase();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            if (string.IsNullOrEmpty(user.OrganizationNumber))
+                throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
+
+            try
+            {
+                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).Single();
+                if (objekt == null)
+                {
+                    throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
+                }
+
+                //DROP COLUMN 
+                var sql = "DROP TABLE " + objekt.TableName + ";";
+                var con = new NpgsqlConnection(
+                connectionString: _config.ForvaltningApiDatabase);
+                con.Open();
+                using var cmd = new NpgsqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = sql;
+                await cmd.ExecuteNonQueryAsync();
+                con.Close();
+
+                //Remove metadata table rows
+                _context.ForvaltningsObjektMetadata.Remove(objekt);
+                _context.SaveChanges();
+  
+            }
+            catch (NpgsqlException ex)
+            {
+            }
+
+            return null;
+
+        }
+
         //public async Task<DataObject> AddObject(int id, ObjectItem item)
         //{
         //    User user = await _authService.GetUser();
@@ -490,6 +533,7 @@ namespace Geonorge.Forvaltning.Services
     public interface IObjectService
     {
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
+        Task<object?> DeleteObject(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
 
         //Task<DataObject> AddObject(int id, ObjectItem o);
