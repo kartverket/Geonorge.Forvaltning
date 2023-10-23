@@ -282,7 +282,7 @@ namespace Geonorge.Forvaltning.Services
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
                 }
 
-                //DROP COLUMN 
+                //DROP TABLE 
                 var sql = "DROP TABLE " + objekt.TableName + ";";
                 var con = new NpgsqlConnection(
                 connectionString: _config.ForvaltningApiDatabase);
