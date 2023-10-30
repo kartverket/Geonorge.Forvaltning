@@ -539,7 +539,8 @@ namespace Geonorge.Forvaltning.Services
 
                 catch (Exception ex)
                 {
-
+                    _logger.LogError("Error:", ex);
+                    throw new Exception("Feil ved sending epost");
                 }
             }
 
