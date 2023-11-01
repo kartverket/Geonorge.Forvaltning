@@ -535,6 +535,8 @@ namespace Geonorge.Forvaltning.Services
                     client.Send(message);
                     client.Disconnect(true);
                     client.Dispose();
+
+                    _logger.LogInformation("Epost sendt til: " + _configEmail.WebmasterEmail + ", bruker " + user.Email + " ønsker tilgang");
                 }
 
                 catch (Exception ex)
