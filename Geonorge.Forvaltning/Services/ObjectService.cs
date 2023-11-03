@@ -48,7 +48,7 @@ namespace Geonorge.Forvaltning.Services
                 int col = 1;
                 foreach (var item in o.Properties)
                 {
-                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber });
+                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber, AllowedValues = item.AllowedValues });
                     col++;
                 }
                 _context.ForvaltningsObjektMetadata.Add(metadata);
@@ -56,6 +56,8 @@ namespace Geonorge.Forvaltning.Services
 
                 metadata.TableName = "t_" + metadata.Id.ToString();
                 _context.SaveChanges();
+
+                string sqlConstraints = "";
 
                 string sql = "CREATE TABLE " + metadata.TableName + " (id SERIAL PRIMARY KEY,"; //Todo use uuid data type?
                 foreach(var property in metadata.ForvaltningsObjektPropertiesMetadata)
@@ -69,6 +71,12 @@ namespace Geonorge.Forvaltning.Services
                     else
                         sql = sql + " " + property.ColumnName + " text,";
 
+
+                    if (property.AllowedValues != null && property.AllowedValues.Any()) 
+                    { 
+                        sqlConstraints = sqlConstraints + "ALTER TABLE " + metadata.TableName + " ADD CONSTRAINT allowed_" + metadata.TableName + "_" + property.ColumnName;
+                        sqlConstraints = sqlConstraints + " CHECK("+ property.ColumnName + " = ANY('{"+ string.Join(",", property.AllowedValues) + "}'::text[]));";
+                    }
                 }
                 sql = sql + " geometry geometry  ";
                 sql = sql + ", updatedate timestamp with time zone  ";
@@ -77,6 +85,8 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + ", contributor_org text[]  ";
 
                 sql = sql + " ); ";
+
+                sql = sql + sqlConstraints;
 
                 sql = sql + "alter table "+ metadata.TableName + " enable row level security;";
                 sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org)))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org))));";

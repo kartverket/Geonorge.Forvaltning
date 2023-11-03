@@ -4,5 +4,6 @@
     {
         public string Name { get; set; }
         public string DataType { get; set; }
+        public List<string>? AllowedValues { get; set; }
     }
 }
