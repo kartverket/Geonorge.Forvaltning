@@ -200,6 +200,17 @@ namespace Geonorge.Forvaltning.Services
                         var columnName = "c_" + (lastColumn + 1);
                            
                         var sql = "ALTER TABLE " + current.TableName + " ADD COLUMN " + columnName + " " + sqlDataType + ";";
+
+                        var sqlConstraints = "";
+
+                        if (item.AllowedValues != null && item.AllowedValues.Any())
+                        {
+                            sqlConstraints = sqlConstraints + "ALTER TABLE " + current.TableName + " ADD CONSTRAINT allowed_" + current.TableName + "_" + columnName;
+                            sqlConstraints = sqlConstraints + " CHECK(" + columnName + " = ANY('{" + string.Join(",", item.AllowedValues) + "}'::text[]));";
+                        }
+
+                        sql = sql + sqlConstraints;
+
                         var con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
                         con.Open();
@@ -216,6 +227,7 @@ namespace Geonorge.Forvaltning.Services
                             OrganizationNumber = user.OrganizationNumber,
                             DataType = item.DataType,
                             ColumnName = columnName,
+                            AllowedValues = item.AllowedValues
                         });
 
                         _context.SaveChanges();
@@ -252,7 +264,38 @@ namespace Geonorge.Forvaltning.Services
                             property.Name = item.Name;
                             _context.SaveChanges();
                         }
+                        //Property AllowedValues has changed?
 
+                        bool allowedValuesChanged = false;
+                        var oldAllowedValues = property.AllowedValues;
+                        var newAllowedValues = item.AllowedValues;
+                        var difference = oldAllowedValues?.Except(newAllowedValues != null ? newAllowedValues : new List<string>());
+                        if (difference != null && difference.Any())
+                            allowedValuesChanged = true;
+
+                        if (allowedValuesChanged)
+                        {
+                            property.AllowedValues = item.AllowedValues;
+                            _context.SaveChanges();
+
+                            //Change constraint
+                            var sqlConstraints = "";
+
+                            sqlConstraints = sqlConstraints + "ALTER TABLE " + current.TableName + " DROP CONSTRAINT allowed_" + current.TableName + "_" + columnName;
+                            if(item.AllowedValues != null) {
+                                sqlConstraints = sqlConstraints + ", ADD CONSTRAINT allowed_" + current.TableName + "_" + columnName;
+                                sqlConstraints = sqlConstraints + " CHECK(" + columnName + " = ANY('{" + string.Join(",", item.AllowedValues) + "}'::text[]));";
+                            }
+                            var con = new NpgsqlConnection(
+                            connectionString: _config.ForvaltningApiDatabase);
+                            con.Open();
+                            using var cmd = new NpgsqlCommand();
+                            cmd.Connection = con;
+                            cmd.CommandText = sqlConstraints;
+                            await cmd.ExecuteNonQueryAsync();
+                            con.Close();
+
+                        }
 
 
                     }
