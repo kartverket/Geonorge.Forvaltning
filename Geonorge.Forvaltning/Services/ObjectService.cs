@@ -1,4 +1,4 @@
-﻿using Geonorge.Forvaltning.Models.Api.User;
+using Geonorge.Forvaltning.Models.Api.User;
 using Geonorge.Forvaltning.Models.Entity;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
@@ -272,6 +272,9 @@ namespace Geonorge.Forvaltning.Services
                         var difference = oldAllowedValues?.Except(newAllowedValues != null ? newAllowedValues : new List<string>());
                         if (difference != null && difference.Any())
                             allowedValuesChanged = true;
+                        else if(oldAllowedValues != null && newAllowedValues != null)
+                            if(oldAllowedValues.Count != newAllowedValues.Count)
+                                allowedValuesChanged = true;
 
                         if (allowedValuesChanged)
                         {
