@@ -6,6 +6,8 @@ namespace Geonorge.Forvaltning.Models.Api
     {
         [Required]
         public string Name { get; set; }
+        public string? Description { get; set; }
+        public bool IsOpenData { get; set; }
         [Required]
         public List<ObjectDefinitionPropertyEdit> Properties { get; set; }
 

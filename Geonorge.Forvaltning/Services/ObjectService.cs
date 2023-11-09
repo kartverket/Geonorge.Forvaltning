@@ -43,6 +43,8 @@ namespace Geonorge.Forvaltning.Services
                 Models.Entity.ForvaltningsObjektMetadata metadata = new Models.Entity.ForvaltningsObjektMetadata();
                 metadata.Organization = user.OrganizationNumber;
                 metadata.Name = o.Name;
+                metadata.Description = o.Description;
+                metadata.IsOpenData = o.IsOpenData;
                 metadata.TableName = "";
                 metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
                 int col = 1;
@@ -138,6 +140,19 @@ namespace Geonorge.Forvaltning.Services
                     current.Name = objekt.Name;
                     _context.SaveChanges();
                 }
+
+                if (current.Description != objekt.Description)
+                {
+                    current.Description = objekt.Description;
+                    _context.SaveChanges();
+                }
+
+                if (current.IsOpenData != objekt.IsOpenData)
+                {
+                    current.IsOpenData = objekt.IsOpenData;
+                    _context.SaveChanges();
+                }
+
 
                 var currentProperties = current.ForvaltningsObjektPropertiesMetadata.Select(y => y.Id).ToList();
                 var changedProperties = objekt.Properties.Where(z => z.Id > 0).Select(n => n.Id).ToList();
