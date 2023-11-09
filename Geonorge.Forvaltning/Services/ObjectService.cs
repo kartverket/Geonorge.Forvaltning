@@ -38,6 +38,9 @@ namespace Geonorge.Forvaltning.Services
             if (string.IsNullOrEmpty(user.OrganizationNumber))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
+            if (!string.IsNullOrEmpty(user.OrganizationNumber) && (user.OrganizationNumber.Length != 9 || !int.TryParse(user.OrganizationNumber, out _) ))
+                throw new UnauthorizedAccessException("Feil organisasjonsnummer");
+
             try
             {
                 Models.Entity.ForvaltningsObjektMetadata metadata = new Models.Entity.ForvaltningsObjektMetadata();
@@ -87,6 +90,11 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + ", contributor_org text[]  ";
 
                 sql = sql + " ); ";
+
+
+                sqlConstraints = sqlConstraints + "ALTER TABLE " + metadata.TableName + " ADD CONSTRAINT allowed_owner_org_" + metadata.TableName;
+                sqlConstraints = sqlConstraints + " CHECK(owner_org = '" + metadata.Organization + "');";
+
 
                 sql = sql + sqlConstraints;
 
