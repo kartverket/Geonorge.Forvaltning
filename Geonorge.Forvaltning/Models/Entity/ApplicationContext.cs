@@ -20,5 +20,6 @@ namespace Geonorge.Forvaltning.Models.Entity
         }
         public DbSet<ForvaltningsObjektMetadata> ForvaltningsObjektMetadata { get; set; }
         public DbSet<ForvaltningsObjektPropertiesMetadata> ForvaltningsObjektPropertiesMetadata { get; set; }
+        public DbSet<AccessByProperties> AccessByProperties { get; set; }
     }
 }

@@ -23,5 +23,7 @@ namespace Geonorge.Forvaltning.Models.Entity
         public List<string>? AllowedValues { get; set; }
 
         public virtual ForvaltningsObjektMetadata ForvaltningsObjektMetadata { get; set; }
+
+        public virtual List<AccessByProperties>? AccessByProperties { get; set; }
     }
 }
