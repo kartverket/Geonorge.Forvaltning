@@ -18,6 +18,7 @@ namespace Geonorge.Forvaltning.Models.Entity
         [StringLength(255)]
         [Required]
         public string OrganizationNumber { get; set; }
+        public List<string>? Contributors { get; set; }
 
         public List<string>? AllowedValues { get; set; }
 
