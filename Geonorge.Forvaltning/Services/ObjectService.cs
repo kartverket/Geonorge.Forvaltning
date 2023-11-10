@@ -84,7 +84,6 @@ namespace Geonorge.Forvaltning.Services
                     }
                 }
                 sql = sql + " geometry geometry  ";
-                sql = sql + ", sid integer ";
                 sql = sql + ", updatedate timestamp with time zone  ";
                 sql = sql + ", editor text  ";
                 sql = sql + ", owner_org text  ";
