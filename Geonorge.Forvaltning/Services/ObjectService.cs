@@ -161,6 +161,9 @@ namespace Geonorge.Forvaltning.Services
                     _context.SaveChanges();
                 }
 
+                current.Contributors = objekt.Contributors;
+                _context.SaveChanges();
+
 
                 var currentProperties = current.ForvaltningsObjektPropertiesMetadata.Select(y => y.Id).ToList();
                 var changedProperties = objekt.Properties.Where(z => z.Id > 0).Select(n => n.Id).ToList();
@@ -250,7 +253,8 @@ namespace Geonorge.Forvaltning.Services
                             OrganizationNumber = user.OrganizationNumber,
                             DataType = item.DataType,
                             ColumnName = columnName,
-                            AllowedValues = item.AllowedValues
+                            AllowedValues = item.AllowedValues,
+                            Contributors = objekt.Contributors
                         });
 
                         _context.SaveChanges();
@@ -287,6 +291,10 @@ namespace Geonorge.Forvaltning.Services
                             property.Name = item.Name;
                             _context.SaveChanges();
                         }
+
+                        property.Contributors = objekt.Contributors;
+                        _context.SaveChanges();
+
                         //Property AllowedValues has changed?
 
                         bool allowedValuesChanged = false;
