@@ -344,6 +344,7 @@ namespace Geonorge.Forvaltning.Services
             catch (Exception e)
             {
                 _logger.LogError("Error", e);
+                throw new Exception(e.Message, e);
             }
 
             return null;
