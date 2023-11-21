@@ -118,10 +118,17 @@ namespace Geonorge.Forvaltning.Services
             catch (NpgsqlException ex)
             {
                 _logger.LogError("Database error", ex);
+                throw new Exception("Database error");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError("UnauthorizedAccessException", ex);
+                throw new UnauthorizedAccessException("Ingen tilgang");
             }
             catch (Exception e)
             {
                 _logger.LogError("Error", e);
+                throw new Exception("En feil oppstod");
             }
             return null;
         }
@@ -340,11 +347,17 @@ namespace Geonorge.Forvaltning.Services
             catch (NpgsqlException ex)
             {
                 _logger.LogError("Database error", ex);
+                throw new Exception("Database error");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError("UnauthorizedAccessException", ex);
+                throw new UnauthorizedAccessException("Ingen tilgang");
             }
             catch (Exception e)
             {
                 _logger.LogError("Error", e);
-                throw new Exception(e.Message, e);
+                throw new Exception("En feil oppstod");
             }
 
             return null;
@@ -389,10 +402,17 @@ namespace Geonorge.Forvaltning.Services
             catch (NpgsqlException ex)
             {
                 _logger.LogError("Database error", ex);
+                throw new Exception("Database error");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError("UnauthorizedAccessException", ex);
+                throw new UnauthorizedAccessException("Ingen tilgang");
             }
             catch (Exception e)
             {
                 _logger.LogError("Error", e);
+                throw new Exception("En feil oppstod");
             }
 
             return null;
