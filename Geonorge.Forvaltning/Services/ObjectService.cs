@@ -305,7 +305,7 @@ namespace Geonorge.Forvaltning.Services
                         //Property AllowedValues has changed?
 
                         bool allowedValuesChanged = false;
-                        var oldAllowedValues = property.AllowedValues;
+                        var oldAllowedValues = property.AllowedValues != null ? property.AllowedValues : new List<string>();
                         var newAllowedValues = item.AllowedValues;
                         var difference = oldAllowedValues?.Except(newAllowedValues != null ? newAllowedValues : new List<string>());
                         if (difference != null && difference.Any())
