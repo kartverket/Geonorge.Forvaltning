@@ -37,17 +37,6 @@ namespace Geonorge.Forvaltning.Models.Entity
 //WITH CHECK((EXISTS (SELECT* FROM users WHERE (users.organization = "ForvaltningsObjektMetadata"."Organization"))))
 
 
-//CREATE POLICY "MetadataProperties" ON "public"."ForvaltningsObjektPropertiesMetadata"
-
-//AS PERMISSIVE FOR ALL
-
-//TO public
-
-//USING ((EXISTS (SELECT* FROM users WHERE (users.organization = "ForvaltningsObjektPropertiesMetadata"."OrganizationNumber"))))
-
-//WITH CHECK((EXISTS (SELECT* FROM users WHERE (users.organization = "ForvaltningsObjektPropertiesMetadata"."OrganizationNumber"))))
-
-
 //CREATE POLICY "MetadataContributor" ON "public"."ForvaltningsObjektMetadata"
 
 //AS PERMISSIVE FOR SELECT
@@ -56,10 +45,16 @@ namespace Geonorge.Forvaltning.Models.Entity
 
 //USING ((EXISTS (SELECT* FROM users WHERE (users.organization = ANY("ForvaltningsObjektMetadata"."Contributors")))))
 
-//CREATE POLICY "MetadataPropertiesContributor" ON "public"."ForvaltningsObjektPropertiesMetadata"
+//CREATE POLICY "MetadataAccessByProperties" ON "public"."ForvaltningsObjektMetadata"
 
-//AS PERMISSIVE FOR SELECT
+//AS PERMISSIVE FOR ALL
 
 //TO public
 
-//USING ((EXISTS (SELECT* FROM users WHERE (users.organization = ANY("ForvaltningsObjektPropertiesMetadata"."Contributors")))))
+//USING (
+//("Id" IN(SELECT "ForvaltningsObjektPropertiesMetadata"."ForvaltningsObjektMetadataId"
+//   FROM "ForvaltningsObjektPropertiesMetadata",
+//    "AccessByProperties",
+//    users
+//  WHERE(("ForvaltningsObjektPropertiesMetadata"."Id" = "AccessByProperties"."ForvaltningsObjektPropertiesMetadataId") AND(users.organization = ANY("AccessByProperties"."Contributors")))))
+//)

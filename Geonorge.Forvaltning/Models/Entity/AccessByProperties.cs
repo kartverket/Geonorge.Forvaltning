@@ -12,3 +12,17 @@ namespace Geonorge.Forvaltning.Models.Entity
         public virtual ForvaltningsObjektPropertiesMetadata ForvaltningsObjektPropertiesMetadata { get; set; }
     }
 }
+
+//Todo enable RLS and create policy:
+
+//CREATE POLICY "AccessByPropertiesContributors" ON "public"."AccessByProperties"
+
+//AS PERMISSIVE FOR SELECT
+
+//TO public
+
+//USING (
+//(EXISTS(SELECT "AccessByProperties"."Contributors"
+//   FROM users
+//  WHERE(users.organization = ANY("AccessByProperties"."Contributors"))))
+//)

@@ -27,3 +27,64 @@ namespace Geonorge.Forvaltning.Models.Entity
         public virtual List<AccessByProperties>? AccessByProperties { get; set; }
     }
 }
+//Todo enable RLS and create policy:
+
+//CREATE POLICY "MetadataProperties" ON "public"."ForvaltningsObjektPropertiesMetadata"
+
+//AS PERMISSIVE FOR ALL
+
+//TO public
+
+//USING (
+
+//(EXISTS(SELECT users.id,
+//    users.created_at,
+//    users.email,
+//    users.organization,
+//    users.editor,
+//    users.role
+//   FROM users
+//  WHERE(users.organization = ("ForvaltningsObjektPropertiesMetadata"."OrganizationNumber")::text)))
+//WITH CHECK(
+//(EXISTS(SELECT users.id,
+//    users.created_at,
+//    users.email,
+//    users.organization,
+//    users.editor,
+//    users.role
+//   FROM users
+//  WHERE(users.organization = ("ForvaltningsObjektPropertiesMetadata"."OrganizationNumber")::text)))
+//)
+//)
+
+
+//CREATE POLICY "MetadataPropertiesContributor" ON "public"."ForvaltningsObjektPropertiesMetadata"
+
+//AS PERMISSIVE FOR SELECT
+
+//TO public
+
+//USING (
+//(EXISTS(SELECT users.id,
+//    users.created_at,
+//    users.email,
+//    users.organization,
+//    users.editor,
+//    users.role
+//   FROM users
+//  WHERE(users.organization = ANY("ForvaltningsObjektPropertiesMetadata"."Contributors"))))
+//)
+
+
+//CREATE POLICY "ForvaltningsObjektPropertiesAccessByContributors" ON "public"."ForvaltningsObjektPropertiesMetadata"
+
+//AS PERMISSIVE FOR SELECT
+
+//TO public
+
+//USING (
+//("Id" IN(SELECT "AccessByProperties"."ForvaltningsObjektPropertiesMetadataId"
+//   FROM "AccessByProperties",
+//    users
+//  WHERE(users.organization = ANY("AccessByProperties"."Contributors"))))
+//)
