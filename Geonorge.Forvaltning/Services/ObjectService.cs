@@ -743,7 +743,7 @@ namespace Geonorge.Forvaltning.Services
                         property.AccessByProperties = new List<AccessByProperties>();
 
                         //Insert into config AccessByProperties
-                        var accessProperty =  new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors };
+                        var accessProperty =  new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors, Organization = objekt.Organization };
                         property.AccessByProperties.Add(accessProperty);
                         _context.SaveChanges();
 
