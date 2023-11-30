@@ -657,10 +657,148 @@ namespace Geonorge.Forvaltning.Services
 
             return "Forespørsel sendt";
         }
+
+        public async Task<object?> AccessByProperties(ObjectAccessByProperties accessByProperties)
+        {
+
+            User user = await _authService.GetUserSupabase();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            if (string.IsNullOrEmpty(user.OrganizationNumber))
+                throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
+
+            try
+            {
+                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == accessByProperties.objekt && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).Single();
+                if (objekt == null)
+                {
+                    throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
+                }
+
+
+                //Remove rights contributor
+                var sql = "UPDATE " + objekt.TableName + " SET contributor_org = NULL;";
+                var con = new NpgsqlConnection(
+                connectionString: _config.ForvaltningApiDatabase);
+                con.Open();
+                using var cmd = new NpgsqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = sql;
+                await cmd.ExecuteNonQueryAsync();
+                con.Close();
+
+
+                //Remove old policy
+
+                List<string> removeIds = new List<string>();
+
+                sql = "Select \"Id\" FROM \"AccessByProperties\"  where \"ForvaltningsObjektPropertiesMetadataId\" IN (SELECT \"Id\" FROM \"ForvaltningsObjektPropertiesMetadata\" WHERE \"ForvaltningsObjektMetadataId\" = " + objekt.Id + ")";
+                con = new NpgsqlConnection(
+                connectionString: _config.ForvaltningApiDatabase);
+                con.Open();
+                using var cmd2 = new NpgsqlCommand();
+                cmd2.Connection = con;
+                cmd2.CommandText = sql;
+                using var reader = await cmd2.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    removeIds.Add(reader["Id"].ToString());
+                }
+
+                foreach(var id in removeIds) 
+                {
+                    sql = "DROP POLICY IF EXISTS \"Property" + id+ "\" ON " + objekt.TableName;
+                    con = new NpgsqlConnection(
+                    connectionString: _config.ForvaltningApiDatabase);
+                    con.Open();
+                    using var cmd3 = new NpgsqlCommand();
+                    cmd3.Connection = con;
+                    cmd3.CommandText = sql;
+                    await cmd3.ExecuteNonQueryAsync();
+                    con.Close();
+                }
+
+                con.Close();
+
+                //Remove AccessByProperties config
+                sql = "DELETE FROM \"AccessByProperties\" where \"ForvaltningsObjektPropertiesMetadataId\" IN (SELECT \"Id\" FROM \"ForvaltningsObjektPropertiesMetadata\" WHERE \"ForvaltningsObjektMetadataId\" = " + objekt.Id + ")";
+                con = new NpgsqlConnection(
+                connectionString: _config.ForvaltningApiDatabase);
+                con.Open();
+                using var cmd4 = new NpgsqlCommand();
+                cmd4.Connection = con;
+                cmd4.CommandText = sql;
+                await cmd4.ExecuteNonQueryAsync();
+                con.Close();
+
+                //Set new rights
+                foreach (var prop in accessByProperties.AccessByProperties) 
+                {
+                    var property = objekt.ForvaltningsObjektPropertiesMetadata.Where(f => f.Id == prop.PropertyId).FirstOrDefault();
+
+                    if(property != null) {
+
+                        property.AccessByProperties = new List<AccessByProperties>();
+
+                        //Insert into config AccessByProperties
+                        var accessProperty =  new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors };
+                        property.AccessByProperties.Add(accessProperty);
+                        _context.SaveChanges();
+
+                        //todo handle multiple contributors
+                        //CREATE POLICY
+                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + ".c_1 = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text]))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + ".c_1 = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text])))));";
+                        con = new NpgsqlConnection(
+                        connectionString: _config.ForvaltningApiDatabase);
+                        con.Open();
+                        using var cmd3= new NpgsqlCommand();
+                        cmd3.Connection = con;
+                        cmd3.CommandText = sql;
+                        await cmd3.ExecuteNonQueryAsync();
+                        con.Close();
+
+                        //Update table with contributor_org
+                        //todo handle multiple contributors
+                        sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + accessProperty.Contributors.First().ToString() + "}' Where " + property.ColumnName + "='" + accessProperty.Value + "';";
+                        con = new NpgsqlConnection(
+                        connectionString: _config.ForvaltningApiDatabase);
+                        con.Open();
+                        using var cmd5 = new NpgsqlCommand();
+                        cmd5.Connection = con;
+                        cmd5.CommandText = sql;
+                        await cmd5.ExecuteNonQueryAsync();
+                        con.Close();
+
+                    }
+
+                }
+
+            }
+            catch (NpgsqlException ex)
+            {
+                _logger.LogError("Database error", ex);
+                throw new Exception("Database error");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogError("UnauthorizedAccessException", ex);
+                throw new UnauthorizedAccessException("Ingen tilgang");
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("Error", e);
+                throw new Exception("En feil oppstod");
+            }
+
+            return null;
+        }
     }
 
     public interface IObjectService
     {
+        Task<object?> AccessByProperties(ObjectAccessByProperties accessByProperties);
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task<object?> DeleteObject(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
