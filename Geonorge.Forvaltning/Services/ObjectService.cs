@@ -147,7 +147,7 @@ namespace Geonorge.Forvaltning.Services
 
             try
             {
-                var current = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+                var current = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).ThenInclude(ii => ii.AccessByProperties).FirstOrDefault();
                 if (current == null) 
                 {
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
@@ -343,10 +343,18 @@ namespace Geonorge.Forvaltning.Services
 
                     }
                 }
-            
-                if(current.Contributors != null && current.Contributors.Count > 0) 
+
+                var hasPropertyAccess = false;
+
+                foreach(var prop in current.ForvaltningsObjektPropertiesMetadata) 
                 {
-                    var sql = "UPDATE " + current.TableName + " SET contributor_org = '{" + string.Join(",", current.Contributors) + "}'::text[];";
+                    if (prop.AccessByProperties != null && prop.AccessByProperties.Count > 0)
+                        hasPropertyAccess = true;
+                }
+
+                if (!hasPropertyAccess) 
+                {         
+                    var sql = "UPDATE " + current.TableName + " SET contributor_org = NULL;";
                     var con = new NpgsqlConnection(
                     connectionString: _config.ForvaltningApiDatabase);
                     con.Open();
@@ -354,6 +362,20 @@ namespace Geonorge.Forvaltning.Services
                     cmd.Connection = con;
                     cmd.CommandText = sql;
                     await cmd.ExecuteNonQueryAsync();
+                    con.Close();
+                }
+
+                if (current.Contributors != null && current.Contributors.Count > 0) 
+                {
+
+                    var sql = "UPDATE " + current.TableName + " SET contributor_org = '{" + string.Join(",", current.Contributors) + "}'::text[];";
+                    var con = new NpgsqlConnection(
+                    connectionString: _config.ForvaltningApiDatabase);
+                    con.Open();
+                    using var cmd2 = new NpgsqlCommand();
+                    cmd2.Connection = con;
+                    cmd2.CommandText = sql;
+                    await cmd2.ExecuteNonQueryAsync();
                     con.Close();
                 }
             }
