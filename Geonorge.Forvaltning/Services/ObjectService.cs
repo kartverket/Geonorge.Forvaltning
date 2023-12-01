@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using System.Linq;
 using MimeKit;
 using MailKit.Net.Smtp;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -342,8 +343,19 @@ namespace Geonorge.Forvaltning.Services
 
                     }
                 }
-
-
+            
+                if(current.Contributors != null && current.Contributors.Count > 0) 
+                {
+                    var sql = "UPDATE " + current.TableName + " SET contributor_org = '{" + string.Join(",", current.Contributors) + "}'::text[];";
+                    var con = new NpgsqlConnection(
+                    connectionString: _config.ForvaltningApiDatabase);
+                    con.Open();
+                    using var cmd = new NpgsqlCommand();
+                    cmd.Connection = con;
+                    cmd.CommandText = sql;
+                    await cmd.ExecuteNonQueryAsync();
+                    con.Close();
+                }
             }
             catch (NpgsqlException ex)
             {
