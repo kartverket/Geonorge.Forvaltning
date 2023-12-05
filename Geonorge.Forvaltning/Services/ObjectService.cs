@@ -812,7 +812,10 @@ namespace Geonorge.Forvaltning.Services
 
                 }
 
-                foreach(var egenskap in objekt.ForvaltningsObjektPropertiesMetadata) 
+                objekt.Contributors = contributors.Distinct().ToList();
+                _context.SaveChanges();
+
+                foreach (var egenskap in objekt.ForvaltningsObjektPropertiesMetadata) 
                 {
                     egenskap.Contributors = contributors.Distinct().ToList();
                     _context.SaveChanges();
