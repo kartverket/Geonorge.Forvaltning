@@ -775,7 +775,8 @@ namespace Geonorge.Forvaltning.Services
 
                     if(property != null) {
 
-                        property.AccessByProperties = new List<AccessByProperties>();
+                        if(property.AccessByProperties == null)
+                            property.AccessByProperties = new List<AccessByProperties>();
 
                         contributors.AddRange(prop.Contributors);
 
