@@ -102,7 +102,6 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + "alter table "+ metadata.TableName + " enable row level security;";
                 sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '"+ metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
                 sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\"))))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\")))))));";
-                //Todo add new method to create policy for access by properties, see ex: PropertyMerkeEsso policy
                 var con = new NpgsqlConnection(
                 connectionString: _config.ForvaltningApiDatabase);
                 con.Open();
@@ -705,7 +704,7 @@ namespace Geonorge.Forvaltning.Services
 
             try
             {
-                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == accessByProperties.objekt && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).Single();
+                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == accessByProperties.objekt && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
                 if (objekt == null)
                 {
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
@@ -767,6 +766,8 @@ namespace Geonorge.Forvaltning.Services
                 await cmd4.ExecuteNonQueryAsync();
                 con.Close();
 
+                List<string> contributors = new List<string>();
+
                 //Set new rights
                 foreach (var prop in accessByProperties.AccessByProperties) 
                 {
@@ -776,6 +777,8 @@ namespace Geonorge.Forvaltning.Services
 
                         property.AccessByProperties = new List<AccessByProperties>();
 
+                        contributors.AddRange(prop.Contributors);
+
                         //Insert into config AccessByProperties
                         var accessProperty =  new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors, Organization = objekt.Organization };
                         property.AccessByProperties.Add(accessProperty);
@@ -783,7 +786,7 @@ namespace Geonorge.Forvaltning.Services
 
                         //todo handle multiple contributors
                         //CREATE POLICY
-                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + ".c_1 = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text]))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + ".c_1 = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text])))));";
+                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text]))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text])))));";
                         con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
                         con.Open();
@@ -807,6 +810,12 @@ namespace Geonorge.Forvaltning.Services
 
                     }
 
+                }
+
+                foreach(var egenskap in objekt.ForvaltningsObjektPropertiesMetadata) 
+                {
+                    egenskap.Contributors = contributors.Distinct().ToList();
+                    _context.SaveChanges();
                 }
 
             }

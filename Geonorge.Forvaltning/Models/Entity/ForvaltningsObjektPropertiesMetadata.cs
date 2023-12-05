@@ -74,17 +74,3 @@ namespace Geonorge.Forvaltning.Models.Entity
 //   FROM users
 //  WHERE(users.organization = ANY("ForvaltningsObjektPropertiesMetadata"."Contributors"))))
 //)
-
-
-//CREATE POLICY "ForvaltningsObjektPropertiesAccessByContributors" ON "public"."ForvaltningsObjektPropertiesMetadata"
-
-//AS PERMISSIVE FOR SELECT
-
-//TO public
-
-//USING (
-//("Id" IN(SELECT "AccessByProperties"."ForvaltningsObjektPropertiesMetadataId"
-//   FROM "AccessByProperties",
-//    users
-//  WHERE(users.organization = ANY("AccessByProperties"."Contributors"))))
-//)
