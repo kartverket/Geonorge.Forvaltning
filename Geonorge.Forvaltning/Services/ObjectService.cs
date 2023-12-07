@@ -819,13 +819,13 @@ namespace Geonorge.Forvaltning.Services
                         con.Close();
 
                         //Update table with contributor_org
-                        //todo accessProperty.Value Use parameters
-                        //todo update based on other datatypes than text
-                        sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "='" + accessProperty.Value + "';";
+                        //todo update data based on other datatypes than text? Must also fix policy
+                        sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "=@value;";
                         con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
                         con.Open();
                         using var cmd5 = new NpgsqlCommand();
+                        cmd5.Parameters.AddWithValue("@value", accessProperty.Value);
                         cmd5.Connection = con;
                         cmd5.CommandText = sql;
                         await cmd5.ExecuteNonQueryAsync();
