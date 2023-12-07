@@ -9,6 +9,7 @@ using System.Linq;
 using MimeKit;
 using MailKit.Net.Smtp;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Geonorge.Forvaltning.Models;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -722,6 +723,7 @@ namespace Geonorge.Forvaltning.Services
             foreach (var prop in accessByProperties.AccessByProperties)
             {
                 ValidateOrganizationNumbers(prop.Contributors);
+                Helper.CheckString(prop.Value);
             }
 
             try
