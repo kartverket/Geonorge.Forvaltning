@@ -807,9 +807,8 @@ namespace Geonorge.Forvaltning.Services
                         property.AccessByProperties.Add(accessProperty);
                         _context.SaveChanges();
 
-                        //todo handle multiple contributors
                         //CREATE POLICY
-                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text]))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = ARRAY['" + prop.Contributors.First().ToString() + "'::text])))));";
+                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
                         con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
                         con.Open();
@@ -820,10 +819,9 @@ namespace Geonorge.Forvaltning.Services
                         con.Close();
 
                         //Update table with contributor_org
-                        //todo handle multiple contributors
                         //todo accessProperty.Value Use parameters
                         //todo update based on other datatypes than text
-                        sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + accessProperty.Contributors.First().ToString() + "}' Where " + property.ColumnName + "='" + accessProperty.Value + "';";
+                        sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "='" + accessProperty.Value + "';";
                         con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
                         con.Open();
