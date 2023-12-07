@@ -381,7 +381,7 @@ namespace Geonorge.Forvaltning.Services
                     con.Close();
                 }
 
-                if (current.Contributors != null && current.Contributors.Count > 0) 
+                if (!hasPropertyAccess && current.Contributors != null && current.Contributors.Count > 0) 
                 {
 
                     var sql = "UPDATE " + current.TableName + " SET contributor_org = '{" + string.Join(",", current.Contributors) + "}'::text[];";
