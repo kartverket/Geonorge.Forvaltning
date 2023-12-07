@@ -29,6 +29,22 @@ namespace Geonorge.Forvaltning.Services
             _logger = logger;
         }
 
+        public static void ValidateOrganizationNumber(string number) 
+        {
+            if (string.IsNullOrEmpty(number) || (!string.IsNullOrEmpty(number) && (number.Length != 9 || !int.TryParse(number, out _))))
+                throw new UnauthorizedAccessException("Feil organisasjonsnummer");
+
+        }
+
+        public static void ValidateOrganizationNumbers(List<string> numbers)
+        {
+            if(numbers != null && numbers.Count > 0) { 
+                foreach(var number in numbers) { 
+                    ValidateOrganizationNumber(number);
+                    }
+            }
+        }
+
         public async Task<DataObject> AddDefinition(ObjectDefinitionAdd o)
         {
             User user = await _authService.GetUserSupabase();
@@ -39,8 +55,7 @@ namespace Geonorge.Forvaltning.Services
             if (string.IsNullOrEmpty(user.OrganizationNumber))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
-            if (!string.IsNullOrEmpty(user.OrganizationNumber) && (user.OrganizationNumber.Length != 9 || !int.TryParse(user.OrganizationNumber, out _) ))
-                throw new UnauthorizedAccessException("Feil organisasjonsnummer");
+            ValidateOrganizationNumber(user.OrganizationNumber);
 
             try
             {
@@ -143,6 +158,8 @@ namespace Geonorge.Forvaltning.Services
 
             if (string.IsNullOrEmpty(user.OrganizationNumber))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
+
+            ValidateOrganizationNumbers(objekt.Contributors);
 
             try
             {
@@ -702,6 +719,11 @@ namespace Geonorge.Forvaltning.Services
             if (string.IsNullOrEmpty(user.OrganizationNumber))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
+            foreach (var prop in accessByProperties.AccessByProperties)
+            {
+                ValidateOrganizationNumbers(prop.Contributors);
+            }
+
             try
             {
                 var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == accessByProperties.objekt && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
@@ -799,6 +821,8 @@ namespace Geonorge.Forvaltning.Services
 
                         //Update table with contributor_org
                         //todo handle multiple contributors
+                        //todo accessProperty.Value Use parameters
+                        //todo update based on other datatypes than text
                         sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + accessProperty.Contributors.First().ToString() + "}' Where " + property.ColumnName + "='" + accessProperty.Value + "';";
                         con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
