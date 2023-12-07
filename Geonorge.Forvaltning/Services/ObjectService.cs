@@ -810,7 +810,24 @@ namespace Geonorge.Forvaltning.Services
                         _context.SaveChanges();
 
                         //CREATE POLICY
-                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = '" + prop.Value + "'::text) AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
+                        var policyValue = "'" + prop.Value + "'";
+                        object sqlValue = prop.Value;
+                        if (property.DataType.Contains("bool"))
+                        {
+                            policyValue = prop.Value;
+                            sqlValue = Boolean.Parse(prop.Value);
+                        }
+                        else if (property.DataType.Contains("numeric")) { 
+                            policyValue = prop.Value;
+                            sqlValue = Convert.ToDouble(prop.Value);
+                        }
+                        else if (property.DataType.Contains("timestamp"))
+                        {
+                            policyValue = "'" + prop.Value + "'";
+                            sqlValue = Convert.ToDateTime(prop.Value);
+                        }
+
+                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
                         con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
                         con.Open();
@@ -821,13 +838,12 @@ namespace Geonorge.Forvaltning.Services
                         con.Close();
 
                         //Update table with contributor_org
-                        //todo update data based on other datatypes than text? Must also fix policy
                         sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "=@value;";
                         con = new NpgsqlConnection(
                         connectionString: _config.ForvaltningApiDatabase);
                         con.Open();
                         using var cmd5 = new NpgsqlCommand();
-                        cmd5.Parameters.AddWithValue("@value", accessProperty.Value);
+                        cmd5.Parameters.AddWithValue("@value", sqlValue);
                         cmd5.Connection = con;
                         cmd5.CommandText = sql;
                         await cmd5.ExecuteNonQueryAsync();
