@@ -80,13 +80,13 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
-
         [HttpPost("access-by-properties", Name = "PostAccessByProperties")]
-        public async Task<IActionResult> PostAccessByProperties(ObjectAccessByProperties accessByProperties)
+        [HttpPost("access", Name = "PostAccess")]
+        public async Task<IActionResult> PostAccess(ObjectAccess access)
         {
             try
             {
-                return Ok(await _objectService.AccessByProperties(accessByProperties));
+                return Ok(await _objectService.Access(access));
             }
             catch (Exception ex)
             {

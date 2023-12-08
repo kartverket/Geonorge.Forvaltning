@@ -709,7 +709,7 @@ namespace Geonorge.Forvaltning.Services
             return "Forespørsel sendt";
         }
 
-        public async Task<object?> AccessByProperties(ObjectAccessByProperties accessByProperties)
+        public async Task<object?> Access(ObjectAccess access)
         {
 
             User user = await _authService.GetUserSupabase();
@@ -720,19 +720,35 @@ namespace Geonorge.Forvaltning.Services
             if (string.IsNullOrEmpty(user.OrganizationNumber))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
-            foreach (var prop in accessByProperties.AccessByProperties)
+            foreach (var prop in access.AccessByProperties)
             {
                 ValidateOrganizationNumbers(prop.Contributors);
                 Helper.CheckString(prop.Value);
             }
 
+            ValidateOrganizationNumbers(access.Contributors);
+
             try
             {
-                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == accessByProperties.objekt && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == access.objekt && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
                 if (objekt == null)
                 {
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
                 }
+
+                objekt.Contributors = access.Contributors;
+                _context.SaveChanges();
+
+                foreach(var prop in objekt.ForvaltningsObjektPropertiesMetadata) 
+                {
+                    prop.Contributors = access.Contributors;
+                    _context.SaveChanges();
+                }
+
+                var hasPropertyAccess = false;
+
+                if (access.Contributors == null || access.Contributors.Count == 0)
+                    hasPropertyAccess = true;
 
 
                 //Remove rights contributor
@@ -793,73 +809,92 @@ namespace Geonorge.Forvaltning.Services
                 List<string> contributors = new List<string>();
 
                 //Set new rights
-                foreach (var prop in accessByProperties.AccessByProperties) 
+
+
+                if (access.Contributors != null && access.Contributors.Count > 0)
                 {
-                    var property = objekt.ForvaltningsObjektPropertiesMetadata.Where(f => f.Id == prop.PropertyId).FirstOrDefault();
 
-                    if(property != null) {
+                    sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", objekt.Contributors) + "}'::text[];";
+                    con = new NpgsqlConnection(
+                    connectionString: _config.ForvaltningApiDatabase);
+                    con.Open();
+                    using var cmd2b = new NpgsqlCommand();
+                    cmd2b.Connection = con;
+                    cmd2b.CommandText = sql;
+                    await cmd2b.ExecuteNonQueryAsync();
+                    con.Close();
+                }
 
-                        if(property.AccessByProperties == null)
-                            property.AccessByProperties = new List<AccessByProperties>();
+                else 
+                {  
+                    foreach (var prop in access.AccessByProperties) 
+                    {
+                        var property = objekt.ForvaltningsObjektPropertiesMetadata.Where(f => f.Id == prop.PropertyId).FirstOrDefault();
 
-                        contributors.AddRange(prop.Contributors);
+                        if(property != null) {
 
-                        //Insert into config AccessByProperties
-                        var accessProperty =  new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors, Organization = objekt.Organization };
-                        property.AccessByProperties.Add(accessProperty);
-                        _context.SaveChanges();
+                            if(property.AccessByProperties == null)
+                                property.AccessByProperties = new List<AccessByProperties>();
 
-                        //CREATE POLICY
-                        var policyValue = "'" + prop.Value + "'";
-                        object sqlValue = prop.Value;
-                        if (property.DataType.Contains("bool"))
-                        {
-                            policyValue = prop.Value;
-                            sqlValue = Boolean.Parse(prop.Value);
+                            contributors.AddRange(prop.Contributors);
+
+                            //Insert into config AccessByProperties
+                            var accessProperty =  new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors, Organization = objekt.Organization };
+                            property.AccessByProperties.Add(accessProperty);
+                            _context.SaveChanges();
+
+                            //CREATE POLICY
+                            var policyValue = "'" + prop.Value + "'";
+                            object sqlValue = prop.Value;
+                            if (property.DataType.Contains("bool"))
+                            {
+                                policyValue = prop.Value;
+                                sqlValue = Boolean.Parse(prop.Value);
+                            }
+                            else if (property.DataType.Contains("numeric")) { 
+                                policyValue = prop.Value;
+                                sqlValue = Convert.ToDouble(prop.Value);
+                            }
+                            else if (property.DataType.Contains("timestamp"))
+                            {
+                                policyValue = "'" + prop.Value + "'";
+                                sqlValue = Convert.ToDateTime(prop.Value);
+                            }
+
+                            sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
+                            con = new NpgsqlConnection(
+                            connectionString: _config.ForvaltningApiDatabase);
+                            con.Open();
+                            using var cmd3= new NpgsqlCommand();
+                            cmd3.Connection = con;
+                            cmd3.CommandText = sql;
+                            await cmd3.ExecuteNonQueryAsync();
+                            con.Close();
+
+                            //Update table with contributor_org
+                            sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "=@value;";
+                            con = new NpgsqlConnection(
+                            connectionString: _config.ForvaltningApiDatabase);
+                            con.Open();
+                            using var cmd5 = new NpgsqlCommand();
+                            cmd5.Parameters.AddWithValue("@value", sqlValue);
+                            cmd5.Connection = con;
+                            cmd5.CommandText = sql;
+                            await cmd5.ExecuteNonQueryAsync();
+                            con.Close();
+
                         }
-                        else if (property.DataType.Contains("numeric")) { 
-                            policyValue = prop.Value;
-                            sqlValue = Convert.ToDouble(prop.Value);
-                        }
-                        else if (property.DataType.Contains("timestamp"))
-                        {
-                            policyValue = "'" + prop.Value + "'";
-                            sqlValue = Convert.ToDateTime(prop.Value);
-                        }
-
-                        sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
-                        con = new NpgsqlConnection(
-                        connectionString: _config.ForvaltningApiDatabase);
-                        con.Open();
-                        using var cmd3= new NpgsqlCommand();
-                        cmd3.Connection = con;
-                        cmd3.CommandText = sql;
-                        await cmd3.ExecuteNonQueryAsync();
-                        con.Close();
-
-                        //Update table with contributor_org
-                        sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "=@value;";
-                        con = new NpgsqlConnection(
-                        connectionString: _config.ForvaltningApiDatabase);
-                        con.Open();
-                        using var cmd5 = new NpgsqlCommand();
-                        cmd5.Parameters.AddWithValue("@value", sqlValue);
-                        cmd5.Connection = con;
-                        cmd5.CommandText = sql;
-                        await cmd5.ExecuteNonQueryAsync();
-                        con.Close();
 
                     }
 
-                }
-
-                objekt.Contributors = contributors.Distinct().ToList();
-                _context.SaveChanges();
-
-                foreach (var egenskap in objekt.ForvaltningsObjektPropertiesMetadata) 
-                {
-                    egenskap.Contributors = contributors.Distinct().ToList();
+                    objekt.Contributors = contributors.Distinct().ToList();
                     _context.SaveChanges();
+
+                    foreach (var egenskap in objekt.ForvaltningsObjektPropertiesMetadata) 
+                    {
+                        egenskap.Contributors = contributors.Distinct().ToList();
+                        _context.SaveChanges();
+                    }
                 }
 
             }
@@ -885,7 +920,7 @@ namespace Geonorge.Forvaltning.Services
 
     public interface IObjectService
     {
-        Task<object?> AccessByProperties(ObjectAccessByProperties accessByProperties);
+        Task<object?> Access(ObjectAccess access);
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task<object?> DeleteObject(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);

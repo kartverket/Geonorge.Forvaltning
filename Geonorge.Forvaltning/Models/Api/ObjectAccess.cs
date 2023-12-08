@@ -3,10 +3,11 @@ using System.Data;
 
 namespace Geonorge.Forvaltning.Models.Api
 {
-    public class ObjectAccessByProperties
+    public class ObjectAccess
     {
         public int objekt { get; set; }
         public List<AccessByProperty> AccessByProperties { get; set; }
+        public List<string>? Contributors { get; set; }
 
 
     }
