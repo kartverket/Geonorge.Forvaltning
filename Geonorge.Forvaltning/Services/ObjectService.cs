@@ -65,8 +65,10 @@ namespace Geonorge.Forvaltning.Services
                 metadata.Name = o.Name;
                 metadata.Description = o.Description;
                 metadata.IsOpenData = o.IsOpenData;
+                metadata.srid = o.Srid ?? 4326;
                 metadata.TableName = "";
                 metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
+
                 int col = 1;
                 foreach (var item in o.Properties)
                 {

@@ -1,13 +1,6 @@
 ﻿using Geonorge.Forvaltning.Models.Api;
 using Geonorge.Forvaltning.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
-using Newtonsoft.Json;
-using System.ComponentModel;
-using System.Data;
-using System.Dynamic;
-using System.Text.Json;
 
 namespace Geonorge.Forvaltning.Controllers
 {
