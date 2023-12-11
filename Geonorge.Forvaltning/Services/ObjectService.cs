@@ -747,8 +747,11 @@ namespace Geonorge.Forvaltning.Services
 
                 var hasPropertyAccess = false;
 
-                if (access.Contributors == null || access.Contributors.Count == 0)
-                    hasPropertyAccess = true;
+                foreach (var prop in objekt.ForvaltningsObjektPropertiesMetadata)
+                {
+                    if (prop.AccessByProperties != null && prop.AccessByProperties.Count > 0)
+                        hasPropertyAccess = true;
+                }
 
 
                 //Remove rights contributor
@@ -811,7 +814,7 @@ namespace Geonorge.Forvaltning.Services
                 //Set new rights
 
 
-                if (access.Contributors != null && access.Contributors.Count > 0)
+                if (!hasPropertyAccess && access.Contributors != null && access.Contributors.Count > 0)
                 {
 
                     sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", objekt.Contributors) + "}'::text[];";
