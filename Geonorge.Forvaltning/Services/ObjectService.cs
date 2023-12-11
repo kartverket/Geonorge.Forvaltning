@@ -160,8 +160,6 @@ namespace Geonorge.Forvaltning.Services
             if (string.IsNullOrEmpty(user.OrganizationNumber))
                 throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
 
-            ValidateOrganizationNumbers(objekt.Contributors);
-
             try
             {
                 var current = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).ThenInclude(ii => ii.AccessByProperties).FirstOrDefault();
@@ -186,10 +184,6 @@ namespace Geonorge.Forvaltning.Services
                     current.IsOpenData = objekt.IsOpenData;
                     _context.SaveChanges();
                 }
-
-                current.Contributors = objekt.Contributors;
-                _context.SaveChanges();
-
 
                 var currentProperties = current.ForvaltningsObjektPropertiesMetadata.Select(y => y.Id).ToList();
                 var changedProperties = objekt.Properties.Where(z => z.Id > 0).Select(n => n.Id).ToList();
@@ -279,8 +273,7 @@ namespace Geonorge.Forvaltning.Services
                             OrganizationNumber = user.OrganizationNumber,
                             DataType = item.DataType,
                             ColumnName = columnName,
-                            AllowedValues = item.AllowedValues,
-                            Contributors = objekt.Contributors
+                            AllowedValues = item.AllowedValues
                         });
 
                         _context.SaveChanges();
@@ -317,9 +310,6 @@ namespace Geonorge.Forvaltning.Services
                             property.Name = item.Name;
                             _context.SaveChanges();
                         }
-
-                        property.Contributors = objekt.Contributors;
-                        _context.SaveChanges();
 
                         //Property AllowedValues has changed?
 
@@ -747,9 +737,9 @@ namespace Geonorge.Forvaltning.Services
 
                 var hasPropertyAccess = false;
 
-                foreach (var prop in objekt.ForvaltningsObjektPropertiesMetadata)
+                foreach (var prop in access.AccessByProperties)
                 {
-                    if (prop.AccessByProperties != null && prop.AccessByProperties.Count > 0)
+                    if (prop != null)
                         hasPropertyAccess = true;
                 }
 
