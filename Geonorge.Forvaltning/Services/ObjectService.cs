@@ -419,7 +419,7 @@ namespace Geonorge.Forvaltning.Services
 
             try
             {
-                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).Single();
+                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
                 if (objekt == null)
                 {
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
