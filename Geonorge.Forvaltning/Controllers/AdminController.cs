@@ -80,7 +80,6 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
-        [HttpPost("access-by-properties", Name = "PostAccessByProperties")]
         [HttpPost("access", Name = "PostAccess")]
         public async Task<IActionResult> PostAccess(ObjectAccess access)
         {
