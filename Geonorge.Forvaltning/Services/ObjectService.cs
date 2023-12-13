@@ -350,41 +350,6 @@ namespace Geonorge.Forvaltning.Services
 
                     }
                 }
-
-                var hasPropertyAccess = false;
-
-                foreach(var prop in current.ForvaltningsObjektPropertiesMetadata) 
-                {
-                    if (prop.AccessByProperties != null && prop.AccessByProperties.Count > 0)
-                        hasPropertyAccess = true;
-                }
-
-                if (!hasPropertyAccess) 
-                {         
-                    var sql = "UPDATE " + current.TableName + " SET contributor_org = NULL;";
-                    var con = new NpgsqlConnection(
-                    connectionString: _config.ForvaltningApiDatabase);
-                    con.Open();
-                    using var cmd = new NpgsqlCommand();
-                    cmd.Connection = con;
-                    cmd.CommandText = sql;
-                    await cmd.ExecuteNonQueryAsync();
-                    con.Close();
-                }
-
-                if (!hasPropertyAccess && current.Contributors != null && current.Contributors.Count > 0) 
-                {
-
-                    var sql = "UPDATE " + current.TableName + " SET contributor_org = '{" + string.Join(",", current.Contributors) + "}'::text[];";
-                    var con = new NpgsqlConnection(
-                    connectionString: _config.ForvaltningApiDatabase);
-                    con.Open();
-                    using var cmd2 = new NpgsqlCommand();
-                    cmd2.Connection = con;
-                    cmd2.CommandText = sql;
-                    await cmd2.ExecuteNonQueryAsync();
-                    con.Close();
-                }
             }
             catch (NpgsqlException ex)
             {
