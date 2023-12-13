@@ -688,10 +688,6 @@ namespace Geonorge.Forvaltning.Services
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task<object?> DeleteObject(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
-
-        //Task<DataObject> AddObject(int id, ObjectItem o);
-        //Task<List<Geonorge.Forvaltning.Models.Api.ForvaltningsObjektMetadata>> GetMetadataObjects();
-        //Task<DataObject> GetMetadataObject(int id);
         Task<object?> RequestAuthorize();
     }
 }
