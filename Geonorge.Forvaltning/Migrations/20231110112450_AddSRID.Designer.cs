@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Geonorge.Forvaltning.Models.Entity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Geonorge.Forvaltning.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    partial class ApplicationContextModelSnapshot : ModelSnapshot
+    [Migration("20231110112450_AddSRID")]
+    partial class AddSRID
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -23,35 +26,6 @@ namespace Geonorge.Forvaltning.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.AccessByProperties", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<List<string>>("Contributors")
-                        .HasColumnType("text[]");
-
-                    b.Property<int>("ForvaltningsObjektPropertiesMetadataId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Organization")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ForvaltningsObjektPropertiesMetadataId");
-
-                    b.ToTable("AccessByProperties");
-                });
-
             modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektMetadata", b =>
                 {
                     b.Property<int>("Id")
@@ -59,9 +33,6 @@ namespace Geonorge.Forvaltning.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<List<string>>("Contributors")
-                        .HasColumnType("text[]");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
@@ -109,9 +80,6 @@ namespace Geonorge.Forvaltning.Migrations
                         .HasMaxLength(31)
                         .HasColumnType("character varying(31)");
 
-                    b.Property<List<string>>("Contributors")
-                        .HasColumnType("text[]");
-
                     b.Property<string>("DataType")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -137,17 +105,6 @@ namespace Geonorge.Forvaltning.Migrations
                     b.ToTable("ForvaltningsObjektPropertiesMetadata");
                 });
 
-            modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.AccessByProperties", b =>
-                {
-                    b.HasOne("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektPropertiesMetadata", "ForvaltningsObjektPropertiesMetadata")
-                        .WithMany("AccessByProperties")
-                        .HasForeignKey("ForvaltningsObjektPropertiesMetadataId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ForvaltningsObjektPropertiesMetadata");
-                });
-
             modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektPropertiesMetadata", b =>
                 {
                     b.HasOne("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektMetadata", "ForvaltningsObjektMetadata")
@@ -162,11 +119,6 @@ namespace Geonorge.Forvaltning.Migrations
             modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektMetadata", b =>
                 {
                     b.Navigation("ForvaltningsObjektPropertiesMetadata");
-                });
-
-            modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektPropertiesMetadata", b =>
-                {
-                    b.Navigation("AccessByProperties");
                 });
 #pragma warning restore 612, 618
         }
