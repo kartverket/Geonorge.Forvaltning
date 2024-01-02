@@ -73,7 +73,6 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
-        [HttpPost("access-by-properties", Name = "PostAccessByProperties")]
         [HttpPost("access", Name = "PostAccess")]
         public async Task<IActionResult> PostAccess(ObjectAccess access)
         {
@@ -110,51 +109,5 @@ namespace Geonorge.Forvaltning.Controllers
                 throw;
             }
         }
-
-        //[ApiExplorerSettings(IgnoreApi = true)]
-        //[Obsolete("Use supabase client")]
-        //[HttpPost("object/{id:int}", Name = "PostObjectItem")]
-        //public async Task<IActionResult> PostObjectItem(int id, ObjectItem item)
-        //{
-        //    try
-        //    {
-        //        return Ok(await _objectService.AddObject(id, item));
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //    }
-
-        //    return BadRequest();
-        //}
-
-        //[ApiExplorerSettings(IgnoreApi = true)]
-        //[Obsolete("Use supabase client")]
-        //[HttpGet("objects", Name = "GetMetadataObjects")]
-        //public async Task<IActionResult> GetMetadataObjects()
-        //{
-        //    try
-        //    {
-        //        return Ok(await _objectService.GetMetadataObjects());
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //    }
-        //    return BadRequest();
-        //}
-
-        //[ApiExplorerSettings(IgnoreApi = true)]
-        //[Obsolete("Use supabase client")]
-        //[HttpGet("object/{id:int}")]
-        //public async Task<IActionResult> GetObject(int id)
-        //{
-        //    try
-        //    {
-        //        return Ok(await _objectService.GetMetadataObject(id));
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //    }
-        //    return NotFound();
-        //}
     }
 }
