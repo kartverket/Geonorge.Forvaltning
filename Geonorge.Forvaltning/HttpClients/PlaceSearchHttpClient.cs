@@ -69,7 +69,8 @@ namespace Geonorge.Forvaltning.HttpClients
                     {
                         { "name", node["stedsnavn"]
                             .AsArray()
-                            .FirstOrDefault(node => node["navnestatus"].GetValue<string>() == "hovednavn")?["skrivemåte"].GetValue<string>()
+                            .FirstOrDefault(node => node["navnestatus"].GetValue<string>() == "hovednavn")?["skrivemåte"]
+                            .GetValue<string>()
                         },
                         { "objectType", node["navneobjekttype"].GetValue<string>() },
                         { "municipality", node["kommuner"][0]["kommunenavn"].GetValue<string>() },

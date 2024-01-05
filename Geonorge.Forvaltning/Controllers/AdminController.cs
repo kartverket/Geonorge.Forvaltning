@@ -60,7 +60,9 @@ namespace Geonorge.Forvaltning.Controllers
         {
             try
             {
-                return Ok(await _objectService.DeleteObject(id));
+                await _objectService.DeleteObjectAsync(id);
+
+                return NoContent();
             }
             catch (Exception ex)
             {

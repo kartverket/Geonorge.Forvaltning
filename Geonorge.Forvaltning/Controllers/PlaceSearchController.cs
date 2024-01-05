@@ -11,7 +11,7 @@ namespace Geonorge.Forvaltning.Controllers
 
         public PlaceSearchController(
             IPlaceSearchHttpClient placeSearchHttpClient, 
-            ILogger<AdminController> logger) : base(logger)
+            ILogger<PlaceSearchController> logger) : base(logger)
         {
             _placeSearchHttpClient = placeSearchHttpClient;
         }
