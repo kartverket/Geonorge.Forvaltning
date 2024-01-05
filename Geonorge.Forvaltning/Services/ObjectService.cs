@@ -327,9 +327,6 @@ namespace Geonorge.Forvaltning.Services
 
                         if (allowedValuesChanged)
                         {
-                            property.AllowedValues = item.AllowedValues;
-                            _context.SaveChanges();
-
                             //Change constraint
                             var sqlConstraints = "";
 
@@ -346,6 +343,9 @@ namespace Geonorge.Forvaltning.Services
                             cmd.CommandText = sqlConstraints;
                             await cmd.ExecuteNonQueryAsync();
                             con.Close();
+
+                            property.AllowedValues = item.AllowedValues;
+                            _context.SaveChanges();
 
                         }
 
