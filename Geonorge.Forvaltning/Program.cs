@@ -1,14 +1,15 @@
 using Geonorge.Forvaltning;
+using Geonorge.Forvaltning.HttpClients;
 using Geonorge.Forvaltning.Models.Entity;
 using Geonorge.Forvaltning.Services;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.OpenApi.Models;
-using System.Reflection;
-using Serilog;
 using LoggingWithSerilog.Middleware;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
+var services = builder.Services;
 
 string configFile = "appsettings.json";
 
@@ -28,12 +29,15 @@ var logger = new LoggerConfiguration()
 builder.Logging.ClearProviders();
 builder.Logging.AddSerilog(logger);
 
-// Add services to the container.
+services.AddResponseCaching();
 
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+services.AddMemoryCache();
+
+services.AddControllers();
+
+services.AddEndpointsApiExplorer();
+
+services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
@@ -92,29 +96,27 @@ builder.Services.AddSwaggerGen(options =>
             {
                 Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Apikey" }
             },
-            new string[] { }
+            Array.Empty<string>()
         }
     });
-
-
 });
 
-builder.Services.Configure<DbConfiguration>(configuration.GetSection(DbConfiguration.SectionName));
-builder.Services.Configure<AuthConfiguration>(configuration.GetSection(AuthConfiguration.SectionName));
-builder.Services.Configure<EmailConfiguration>(configuration.GetSection(EmailConfiguration.SectionName));
-builder.Services.Configure<SupabaseConfiguration>(configuration.GetSection(SupabaseConfiguration.SectionName));
+services.Configure<DbConfiguration>(configuration.GetSection(DbConfiguration.SectionName));
+services.Configure<AuthConfiguration>(configuration.GetSection(AuthConfiguration.SectionName));
+services.Configure<EmailConfiguration>(configuration.GetSection(EmailConfiguration.SectionName));
+services.Configure<SupabaseConfiguration>(configuration.GetSection(SupabaseConfiguration.SectionName));
+services.Configure<PlaceSearchSettings>(configuration.GetSection(PlaceSearchSettings.SectionName));
 
-builder.Services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
+services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
 
-builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-builder.Services.AddTransient<IAuthService, AuthService>();
-builder.Services.AddTransient<IObjectService, ObjectService>();
+services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+services.AddTransient<IAuthService, AuthService>();
+services.AddTransient<IObjectService, ObjectService>();
+services.AddHttpClient<IPlaceSearchHttpClient, PlaceSearchHttpClient>();
 
-builder.Services.AddCors();
+services.AddCors();
 
 var app = builder.Build();
-
-// Configure the HTTP request pipeline.
 
 app.UseCors(options =>
 {
@@ -127,6 +129,7 @@ app.UseSwagger(options =>
 {
     options.RouteTemplate = "docs/{documentName}/openapi.json";
 });
+
 app.UseSwaggerUI(options =>
 {
     var url = $"{(!app.Environment.IsLocal() ? "/api" : "")}/docs/v1/openapi.json";
@@ -136,6 +139,8 @@ app.UseSwaggerUI(options =>
 
     options.RoutePrefix = "docs";
 });
+
+app.UseResponseCaching();
 
 app.UseMiddleware(typeof(ExceptionHandlingMiddleware));
 

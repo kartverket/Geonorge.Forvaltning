@@ -1,23 +1,13 @@
-﻿{
-  "$schema": "https://json.schemastore.org/launchsettings.json",
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iisExpress": {
-      "applicationUrl": "http://localhost:47305",
-      "sslPort": 44341
-    }
-  },
+{
   "profiles": {
     "Geonorge.Forvaltning": {
       "commandName": "Project",
-      "dotnetRunMessages": true,
-      "launchBrowser": true,
       "launchUrl": "docs",
-      "applicationUrl": "https://localhost:44390",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Local"
-      }
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:44390"
     },
     "IIS Express": {
       "commandName": "IISExpress",
@@ -26,6 +16,15 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Local"
       }
+    }
+  },
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:47305",
+      "sslPort": 44341
     }
   }
 }

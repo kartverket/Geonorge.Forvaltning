@@ -21,7 +21,7 @@ namespace Geonorge.Forvaltning.Models.Entity
         public List<string>? Contributors { get; set; }
 
         public List<string>? AllowedValues { get; set; }
-
+        public int ForvaltningsObjektMetadataId { get; set; }
         public virtual ForvaltningsObjektMetadata ForvaltningsObjektMetadata { get; set; }
 
         public virtual List<AccessByProperties>? AccessByProperties { get; set; }

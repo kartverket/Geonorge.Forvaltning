@@ -30,7 +30,7 @@ namespace Geonorge.Forvaltning.Services
             _logger = logger;
         }
 
-        public static void ValidateOrganizationNumber(string number) 
+        public static void ValidateOrganizationNumber(string number)
         {
             if (string.IsNullOrEmpty(number) || (!string.IsNullOrEmpty(number) && (number.Length != 9 || !int.TryParse(number, out _))))
                 throw new UnauthorizedAccessException("Feil organisasjonsnummer");
@@ -39,10 +39,12 @@ namespace Geonorge.Forvaltning.Services
 
         public static void ValidateOrganizationNumbers(List<string> numbers)
         {
-            if(numbers != null && numbers.Count > 0) { 
-                foreach(var number in numbers) { 
+            if (numbers != null && numbers.Count > 0)
+            {
+                foreach (var number in numbers)
+                {
                     ValidateOrganizationNumber(number);
-                    }
+                }
             }
         }
 
@@ -65,8 +67,10 @@ namespace Geonorge.Forvaltning.Services
                 metadata.Name = o.Name;
                 metadata.Description = o.Description;
                 metadata.IsOpenData = o.IsOpenData;
+                metadata.srid = o.Srid ?? 4326;
                 metadata.TableName = "";
                 metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
+
                 int col = 1;
                 foreach (var item in o.Properties)
                 {
@@ -82,7 +86,7 @@ namespace Geonorge.Forvaltning.Services
                 string sqlConstraints = "";
 
                 string sql = "CREATE TABLE " + metadata.TableName + " (id SERIAL PRIMARY KEY,"; //Todo use uuid data type?
-                foreach(var property in metadata.ForvaltningsObjektPropertiesMetadata)
+                foreach (var property in metadata.ForvaltningsObjektPropertiesMetadata)
                 {
                     if (property.DataType.Contains("bool"))
                         sql = sql + " " + property.ColumnName + " boolean,";
@@ -94,10 +98,10 @@ namespace Geonorge.Forvaltning.Services
                         sql = sql + " " + property.ColumnName + " text,";
 
 
-                    if (property.AllowedValues != null && property.AllowedValues.Any()) 
-                    { 
+                    if (property.AllowedValues != null && property.AllowedValues.Any())
+                    {
                         sqlConstraints = sqlConstraints + "ALTER TABLE " + metadata.TableName + " ADD CONSTRAINT allowed_" + metadata.TableName + "_" + property.ColumnName;
-                        sqlConstraints = sqlConstraints + " CHECK("+ property.ColumnName + " = ANY('{"+ string.Join(",", property.AllowedValues) + "}'::text[]));";
+                        sqlConstraints = sqlConstraints + " CHECK(" + property.ColumnName + " = ANY('{" + string.Join(",", property.AllowedValues) + "}'::text[]));";
                     }
                 }
                 sql = sql + " geometry geometry  ";
@@ -115,8 +119,8 @@ namespace Geonorge.Forvaltning.Services
 
                 sql = sql + sqlConstraints;
 
-                sql = sql + "alter table "+ metadata.TableName + " enable row level security;";
-                sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '"+ metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
+                sql = sql + "alter table " + metadata.TableName + " enable row level security;";
+                sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
                 sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\"))))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\")))))));";
                 var con = new NpgsqlConnection(
                 connectionString: _config.ForvaltningApiDatabase);
@@ -127,10 +131,10 @@ namespace Geonorge.Forvaltning.Services
                 await cmd.ExecuteNonQueryAsync();
                 con.Close();
 
-            var created =  new DataObject { definition = new ObjectDefinition { Id = metadata.Id } };  //await GetMetadataObject(metadata.Id);
-            
+                var created = new DataObject { definition = new ObjectDefinition { Id = metadata.Id } };  //await GetMetadataObject(metadata.Id);
 
-            return created;
+
+                return created;
             }
             catch (NpgsqlException ex)
             {
@@ -147,7 +151,6 @@ namespace Geonorge.Forvaltning.Services
                 _logger.LogError("Error", e);
                 throw new Exception("En feil oppstod");
             }
-            return null;
         }
 
         public async Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt)
@@ -163,12 +166,13 @@ namespace Geonorge.Forvaltning.Services
             try
             {
                 var current = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).ThenInclude(ii => ii.AccessByProperties).FirstOrDefault();
-                if (current == null) 
+                if (current == null)
                 {
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
                 }
 
-                if(current.Name != objekt.Name) { 
+                if (current.Name != objekt.Name)
+                {
                     current.Name = objekt.Name;
                     _context.SaveChanges();
                 }
@@ -185,17 +189,23 @@ namespace Geonorge.Forvaltning.Services
                     _context.SaveChanges();
                 }
 
+                if (current.srid != objekt.Srid)
+                {
+                    current.srid = objekt.Srid;
+                    _context.SaveChanges();
+                }
+
                 var currentProperties = current.ForvaltningsObjektPropertiesMetadata.Select(y => y.Id).ToList();
                 var changedProperties = objekt.Properties.Where(z => z.Id > 0).Select(n => n.Id).ToList();
 
                 var itemsToRemove = currentProperties.Where(x => !changedProperties.Any(z => z.Value == x)).ToList();
 
-                foreach(var itemToRemove in itemsToRemove) 
+                foreach (var itemToRemove in itemsToRemove)
                 {
                     //Get columnName
                     var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == itemToRemove).Select(co => co.ColumnName).FirstOrDefault();
                     //DROP COLUMN 
-                    var sql = "ALTER TABLE "+ current.TableName + " DROP COLUMN "+ columnName + ";";
+                    var sql = "ALTER TABLE " + current.TableName + " DROP COLUMN " + columnName + ";";
                     var con = new NpgsqlConnection(
                     connectionString: _config.ForvaltningApiDatabase);
                     con.Open();
@@ -210,7 +220,7 @@ namespace Geonorge.Forvaltning.Services
                     _context.SaveChanges();
                 }
 
-                foreach(var item in objekt.Properties) 
+                foreach (var item in objekt.Properties)
                 {
 
                     var sqlDataType = "text";
@@ -221,7 +231,7 @@ namespace Geonorge.Forvaltning.Services
                     else if (item.DataType.Contains("timestamp"))
                         sqlDataType = "timestamp with time zone";
 
-                    if (item.Id == null || item.Id == 0) 
+                    if (item.Id == null || item.Id == 0)
                     {
 
                         //Get last column number
@@ -244,7 +254,7 @@ namespace Geonorge.Forvaltning.Services
 
 
                         var columnName = "c_" + (lastColumn + 1);
-                           
+
                         var sql = "ALTER TABLE " + current.TableName + " ADD COLUMN " + columnName + " " + sqlDataType + ";";
 
                         var sqlConstraints = "";
@@ -267,7 +277,7 @@ namespace Geonorge.Forvaltning.Services
                         con.Close();
 
                         //add columnName to metadata
-                        current.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata 
+                        current.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata
                         {
                             Name = item.Name,
                             OrganizationNumber = user.OrganizationNumber,
@@ -278,16 +288,16 @@ namespace Geonorge.Forvaltning.Services
 
                         _context.SaveChanges();
                     }
-                    else 
+                    else
                     {
                         //https://www.postgresql.org/docs/current/sql-altertable.html
 
                         //Datatype has changed?
                         var dataType = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).Select(co => co.DataType).FirstOrDefault();
                         var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).Select(co => co.ColumnName).FirstOrDefault();
-                        if (dataType != item.DataType) 
+                        if (dataType != item.DataType)
                         {
-                            var sql = "ALTER TABLE " + current.TableName + " ALTER COLUMN " + columnName + " SET DATA TYPE "+ sqlDataType + ";";
+                            var sql = "ALTER TABLE " + current.TableName + " ALTER COLUMN " + columnName + " SET DATA TYPE " + sqlDataType + ";";
                             var con = new NpgsqlConnection(
                             connectionString: _config.ForvaltningApiDatabase);
                             con.Open();
@@ -298,7 +308,7 @@ namespace Geonorge.Forvaltning.Services
                             con.Close();
 
                             var attributes = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).FirstOrDefault();
-          
+
                             attributes.DataType = item.DataType;
                             _context.SaveChanges();
 
@@ -319,20 +329,18 @@ namespace Geonorge.Forvaltning.Services
                         var difference = oldAllowedValues?.Except(newAllowedValues != null ? newAllowedValues : new List<string>());
                         if (difference != null && difference.Any())
                             allowedValuesChanged = true;
-                        else if(oldAllowedValues != null && newAllowedValues != null)
-                            if(oldAllowedValues.Count != newAllowedValues.Count)
+                        else if (oldAllowedValues != null && newAllowedValues != null)
+                            if (oldAllowedValues.Count != newAllowedValues.Count)
                                 allowedValuesChanged = true;
 
                         if (allowedValuesChanged)
                         {
-                            property.AllowedValues = item.AllowedValues;
-                            _context.SaveChanges();
-
                             //Change constraint
                             var sqlConstraints = "";
 
                             sqlConstraints = sqlConstraints + "ALTER TABLE " + current.TableName + " DROP CONSTRAINT allowed_" + current.TableName + "_" + columnName;
-                            if(item.AllowedValues != null) {
+                            if (item.AllowedValues != null)
+                            {
                                 sqlConstraints = sqlConstraints + ", ADD CONSTRAINT allowed_" + current.TableName + "_" + columnName;
                                 sqlConstraints = sqlConstraints + " CHECK(" + columnName + " = ANY('{" + string.Join(",", item.AllowedValues) + "}'::text[]));";
                             }
@@ -344,6 +352,9 @@ namespace Geonorge.Forvaltning.Services
                             cmd.CommandText = sqlConstraints;
                             await cmd.ExecuteNonQueryAsync();
                             con.Close();
+
+                            property.AllowedValues = item.AllowedValues;
+                            _context.SaveChanges();
 
                         }
 
@@ -371,61 +382,59 @@ namespace Geonorge.Forvaltning.Services
 
         }
 
-        public async Task<object?> DeleteObject(int id)
+        public async Task DeleteObjectAsync(int id)
         {
-
-            User user = await _authService.GetUserSupabase();
-
-            if (user == null)
+            var user = await _authService.GetUserSupabase() ?? 
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             if (string.IsNullOrEmpty(user.OrganizationNumber))
-                throw new UnauthorizedAccessException("Brukeren har ikke tilgang");
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang");
+
+            var objekt = await _context.ForvaltningsObjektMetadata
+                .SingleOrDefaultAsync(metadata => metadata.Id == id && metadata.Organization == user.OrganizationNumber);
+
+            if (objekt == null)
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
 
             try
             {
-                var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
-                if (objekt == null)
-                {
-                    throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
-                }
+                var propertiesMetadatas = await _context.ForvaltningsObjektPropertiesMetadata
+                    .Where(metadata => metadata.ForvaltningsObjektMetadataId == objekt.Id)
+                    .ToListAsync();
 
-                //DROP TABLE 
-                var sql = "DROP TABLE " + objekt.TableName + ";";
-                var con = new NpgsqlConnection(
-                connectionString: _config.ForvaltningApiDatabase);
-                con.Open();
-                using var cmd = new NpgsqlCommand();
-                cmd.Connection = con;
-                cmd.CommandText = sql;
-                await cmd.ExecuteNonQueryAsync();
-                con.Close();
-
-                //Remove metadata table rows
+                _context.ForvaltningsObjektPropertiesMetadata.RemoveRange(propertiesMetadatas);
                 _context.ForvaltningsObjektMetadata.Remove(objekt);
-                _context.SaveChanges();
-  
+
+                await _context.SaveChangesAsync();
+
+                var sql = $"DROP TABLE {objekt.TableName};";
+
+                using var connection = new NpgsqlConnection(connectionString: _config.ForvaltningApiDatabase);
+                connection.Open();
+
+                using var command = new NpgsqlCommand();
+                command.Connection = connection;
+                command.CommandText = sql;
+
+                await command.ExecuteNonQueryAsync();
+                connection.Close();
             }
-            catch (NpgsqlException ex)
+            catch (NpgsqlException exception)
             {
-                _logger.LogError("Database error", ex);
+                _logger.LogError("Database error: {exception}", exception);
                 throw new Exception("Database error");
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException exception)
             {
-                _logger.LogError("UnauthorizedAccessException", ex);
+                _logger.LogError("UnauthorizedAccessException: {exception}", exception);
                 throw new UnauthorizedAccessException("Ingen tilgang");
             }
-            catch (Exception e)
+            catch (Exception exception)
             {
-                _logger.LogError("Error", e);
+                _logger.LogError("Error {exception}", exception);
                 throw new Exception("En feil oppstod");
             }
-
-            return null;
-
         }
-
 
         public async Task<object?> RequestAuthorize()
         {
@@ -434,7 +443,7 @@ namespace Geonorge.Forvaltning.Services
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
-            if (user != null && string.IsNullOrEmpty(user.OrganizationNumber)) 
+            if (user != null && string.IsNullOrEmpty(user.OrganizationNumber))
             {
                 try
                 {
@@ -503,7 +512,7 @@ namespace Geonorge.Forvaltning.Services
                 objekt.Contributors = access.Contributors;
                 _context.SaveChanges();
 
-                foreach(var prop in objekt.ForvaltningsObjektPropertiesMetadata) 
+                foreach (var prop in objekt.ForvaltningsObjektPropertiesMetadata)
                 {
                     prop.Contributors = access.Contributors;
                     _context.SaveChanges();
@@ -547,9 +556,9 @@ namespace Geonorge.Forvaltning.Services
                     removeIds.Add(reader["Id"].ToString());
                 }
 
-                foreach(var id in removeIds) 
+                foreach (var id in removeIds)
                 {
-                    sql = "DROP POLICY IF EXISTS \"Property" + id+ "\" ON " + objekt.TableName;
+                    sql = "DROP POLICY IF EXISTS \"Property" + id + "\" ON " + objekt.TableName;
                     con = new NpgsqlConnection(
                     connectionString: _config.ForvaltningApiDatabase);
                     con.Open();
@@ -592,21 +601,22 @@ namespace Geonorge.Forvaltning.Services
                     con.Close();
                 }
 
-                else 
-                {  
-                    foreach (var prop in access.AccessByProperties) 
+                else
+                {
+                    foreach (var prop in access.AccessByProperties)
                     {
                         var property = objekt.ForvaltningsObjektPropertiesMetadata.Where(f => f.Id == prop.PropertyId).FirstOrDefault();
 
-                        if(property != null) {
+                        if (property != null)
+                        {
 
-                            if(property.AccessByProperties == null)
+                            if (property.AccessByProperties == null)
                                 property.AccessByProperties = new List<AccessByProperties>();
 
                             contributors.AddRange(prop.Contributors);
 
                             //Insert into config AccessByProperties
-                            var accessProperty =  new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors, Organization = objekt.Organization };
+                            var accessProperty = new Models.Entity.AccessByProperties { Value = prop.Value, Contributors = prop.Contributors, Organization = objekt.Organization };
                             property.AccessByProperties.Add(accessProperty);
                             _context.SaveChanges();
 
@@ -618,7 +628,8 @@ namespace Geonorge.Forvaltning.Services
                                 policyValue = prop.Value;
                                 sqlValue = Boolean.Parse(prop.Value);
                             }
-                            else if (property.DataType.Contains("numeric")) { 
+                            else if (property.DataType.Contains("numeric"))
+                            {
                                 policyValue = prop.Value;
                                 sqlValue = Convert.ToDouble(prop.Value);
                             }
@@ -628,11 +639,11 @@ namespace Geonorge.Forvaltning.Services
                                 sqlValue = Convert.ToDateTime(prop.Value);
                             }
 
-                            sql = "CREATE POLICY \"Property"+ accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
+                            sql = "CREATE POLICY \"Property" + accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
                             con = new NpgsqlConnection(
                             connectionString: _config.ForvaltningApiDatabase);
                             con.Open();
-                            using var cmd3= new NpgsqlCommand();
+                            using var cmd3 = new NpgsqlCommand();
                             cmd3.Connection = con;
                             cmd3.CommandText = sql;
                             await cmd3.ExecuteNonQueryAsync();
@@ -654,7 +665,7 @@ namespace Geonorge.Forvaltning.Services
 
                     }
 
-                    foreach (var egenskap in objekt.ForvaltningsObjektPropertiesMetadata) 
+                    foreach (var egenskap in objekt.ForvaltningsObjektPropertiesMetadata)
                     {
                         egenskap.Contributors = contributors.Distinct().ToList();
                         _context.SaveChanges();
@@ -686,7 +697,7 @@ namespace Geonorge.Forvaltning.Services
     {
         Task<object?> Access(ObjectAccess access);
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
-        Task<object?> DeleteObject(int id);
+        Task DeleteObjectAsync(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
         Task<object?> RequestAuthorize();
     }

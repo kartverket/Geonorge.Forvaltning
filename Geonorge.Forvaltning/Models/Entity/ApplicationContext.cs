@@ -13,11 +13,12 @@ namespace Geonorge.Forvaltning.Models.Entity
         {
             _config = config.Value;
         }
+
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            
             options.UseNpgsql(_config.ForvaltningApiDatabase);
         }
+
         public DbSet<ForvaltningsObjektMetadata> ForvaltningsObjektMetadata { get; set; }
         public DbSet<ForvaltningsObjektPropertiesMetadata> ForvaltningsObjektPropertiesMetadata { get; set; }
         public DbSet<AccessByProperties> AccessByProperties { get; set; }
