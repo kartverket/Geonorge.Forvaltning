@@ -1,15 +1,12 @@
+using Geonorge.Forvaltning.Models;
+using Geonorge.Forvaltning.Models.Api;
 using Geonorge.Forvaltning.Models.Api.User;
 using Geonorge.Forvaltning.Models.Entity;
-using Microsoft.Extensions.Options;
-using Microsoft.EntityFrameworkCore;
-using Npgsql;
-using Geonorge.Forvaltning.Models.Api;
-using Newtonsoft.Json;
-using System.Linq;
-using MimeKit;
 using MailKit.Net.Smtp;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Geonorge.Forvaltning.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using MimeKit;
+using Npgsql;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -338,7 +335,7 @@ namespace Geonorge.Forvaltning.Services
                             //Change constraint
                             var sqlConstraints = "";
 
-                            sqlConstraints = sqlConstraints + "ALTER TABLE " + current.TableName + " DROP CONSTRAINT allowed_" + current.TableName + "_" + columnName;
+                            sqlConstraints = sqlConstraints + "ALTER TABLE " + current.TableName + " DROP CONSTRAINT IF EXISTS allowed_" + current.TableName + "_" + columnName;
                             if (item.AllowedValues != null)
                             {
                                 sqlConstraints = sqlConstraints + ", ADD CONSTRAINT allowed_" + current.TableName + "_" + columnName;
@@ -436,50 +433,45 @@ namespace Geonorge.Forvaltning.Services
             }
         }
 
-        public async Task<object?> RequestAuthorize()
+        public async Task RequestAuthorizationAsync()
         {
-            User user = await _authService.GetUserSupabase();
-
-            if (user == null)
+            var user = await _authService.GetUserSupabase() ?? 
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
-            if (user != null && string.IsNullOrEmpty(user.OrganizationNumber))
+            if (!string.IsNullOrEmpty(user?.OrganizationNumber))
+                throw new Exception("Brukeren er allerede autorisert");
+
+            try
             {
-                try
+                using var message = new MimeMessage();
+
+                var from = MailboxAddress.Parse(user.Email);
+                var to = MailboxAddress.Parse(_configEmail.WebmasterEmail);
+
+                message.From.Add(from);
+                message.To.Add(to);
+                message.Subject = "Forespørsel om autorisasjon forvaltning.geonorge.no";
+
+                var bodyBuilder = new BodyBuilder
                 {
-                    MimeMessage message = new MimeMessage();
-                    MailboxAddress from = MailboxAddress.Parse(user.Email);
-                    message.From.Add(from);
+                    HtmlBody = $"{user.Name} ønsker tilgang til datasett under forvaltning.geonorge.no."
+                };
 
-                    MailboxAddress to = MailboxAddress.Parse(_configEmail.WebmasterEmail);
-                    message.To.Add(to);
+                message.Body = bodyBuilder.ToMessageBody();
 
-                    message.Subject = "Forespørsel autorisasjon forvaltning.geonorge.no";
+                using var client = new SmtpClient();
 
+                client.Connect(_configEmail.SmtpHost);
+                client.Send(message);
+                client.Disconnect(true);
 
-                    BodyBuilder bodyBuilder = new BodyBuilder();
-                    bodyBuilder.HtmlBody = user.Name + " ønsker tilgang til datasett under forvaltning.geonorge.no";
-
-                    message.Body = bodyBuilder.ToMessageBody();
-
-                    SmtpClient client = new SmtpClient();
-                    client.Connect(_configEmail.SmtpHost);
-
-                    client.Send(message);
-                    client.Disconnect(true);
-                    client.Dispose();
-
-                    _logger.LogInformation("Epost sendt til: " + _configEmail.WebmasterEmail + ", bruker " + user.Email + " ønsker tilgang");
-                }
-
-                catch (Exception ex)
-                {
-                    _logger.LogError("Error:", ex);
-                    throw new Exception("Feil ved sending epost");
-                }
+                _logger.LogInformation("E-post sendt til: {webmasterEmail}. Bruker {userEmail} ønsker tilgang", _configEmail.WebmasterEmail, user.Email);
             }
-
-            return "Forespørsel sendt";
+            catch (Exception exception)
+            {
+                _logger.LogError("Error: {exception}", exception);
+                throw new Exception("Feil ved sending av e-post");
+            }
         }
 
         public async Task<object?> Access(ObjectAccess access)
@@ -699,6 +691,6 @@ namespace Geonorge.Forvaltning.Services
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task DeleteObjectAsync(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
-        Task<object?> RequestAuthorize();
+        Task RequestAuthorizationAsync();
     }
 }

@@ -93,13 +93,14 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
-
         [HttpPost("authorize-request", Name = "PostAuthorizeRequest")]
         public async Task<IActionResult> PostAuthorizeRequest()
         {
             try
             {
-                return Ok(await _objectService.RequestAuthorize());
+                await _objectService.RequestAuthorizationAsync();
+
+                return Ok();
             }
             catch (Exception ex)
             {
