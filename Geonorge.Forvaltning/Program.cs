@@ -105,6 +105,7 @@ services.Configure<DbConfiguration>(configuration.GetSection(DbConfiguration.Sec
 services.Configure<AuthConfiguration>(configuration.GetSection(AuthConfiguration.SectionName));
 services.Configure<EmailConfiguration>(configuration.GetSection(EmailConfiguration.SectionName));
 services.Configure<SupabaseConfiguration>(configuration.GetSection(SupabaseConfiguration.SectionName));
+services.Configure<OrganizationSearchSettings>(configuration.GetSection(OrganizationSearchSettings.SectionName));
 services.Configure<PlaceSearchSettings>(configuration.GetSection(PlaceSearchSettings.SectionName));
 
 services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
@@ -113,6 +114,7 @@ services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 services.AddTransient<IAuthService, AuthService>();
 services.AddTransient<IObjectService, ObjectService>();
 services.AddHttpClient<IPlaceSearchHttpClient, PlaceSearchHttpClient>();
+services.AddHttpClient<IOrganizationSearchHttpClient, OrganizationSearchHttpClient>();
 
 services.AddCors();
 

@@ -5,17 +5,17 @@ namespace Geonorge.Forvaltning.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class PlaceSearchController(
-        IPlaceSearchHttpClient placeSearchHttpClient,
-        ILogger<PlaceSearchController> logger) : BaseController(logger)
+    public class OrganizationSearchController(
+        IOrganizationSearchHttpClient organizationSearchHttpClient,
+        ILogger<OrganizationSearchController> logger) : BaseController(logger)
     {
-        [HttpGet("{searchString}/{crs}")]
+        [HttpGet("{orgNo}")]
         [ResponseCache(VaryByQueryKeys = new[] { "*" }, Duration = 86400)]
-        public async Task<IActionResult> Search(string searchString, int crs)
+        public async Task<IActionResult> Search(string orgNo)
         {
             try
             {
-                var result = await placeSearchHttpClient.SearchAsync(searchString, crs);
+                var result = await organizationSearchHttpClient.SearchAsync(orgNo);
 
                 return Ok(result);
             }
