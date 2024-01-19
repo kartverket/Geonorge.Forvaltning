@@ -1,5 +1,6 @@
 using Geonorge.Forvaltning;
 using Geonorge.Forvaltning.HttpClients;
+using Geonorge.Forvaltning.HttpClients.OrganizationSearch;
 using Geonorge.Forvaltning.Models.Entity;
 using Geonorge.Forvaltning.Services;
 using LoggingWithSerilog.Middleware;
@@ -111,6 +112,8 @@ services.Configure<PlaceSearchSettings>(configuration.GetSection(PlaceSearchSett
 services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
 
 services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+services.AddSingleton<OrganizationCache>();
+
 services.AddTransient<IAuthService, AuthService>();
 services.AddTransient<IObjectService, ObjectService>();
 services.AddHttpClient<IPlaceSearchHttpClient, PlaceSearchHttpClient>();
