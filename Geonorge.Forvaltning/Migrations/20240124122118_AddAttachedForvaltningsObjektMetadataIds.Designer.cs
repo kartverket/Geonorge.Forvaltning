@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Geonorge.Forvaltning.Models.Entity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Geonorge.Forvaltning.Migrations
 {
     [DbContext(typeof(ApplicationContext))]
-    partial class ApplicationContextModelSnapshot : ModelSnapshot
+    [Migration("20240124122118_AddAttachedForvaltningsObjektMetadataIds")]
+    partial class AddAttachedForvaltningsObjektMetadataIds
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -47,7 +50,7 @@ namespace Geonorge.Forvaltning.Migrations
 
                     b.HasIndex("ForvaltningsObjektPropertiesMetadataId");
 
-                    b.ToTable("AccessByProperties", (string)null);
+                    b.ToTable("AccessByProperties");
                 });
 
             modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektMetadata", b =>
@@ -88,7 +91,7 @@ namespace Geonorge.Forvaltning.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ForvaltningsObjektMetadata", (string)null);
+                    b.ToTable("ForvaltningsObjektMetadata");
                 });
 
             modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.ForvaltningsObjektPropertiesMetadata", b =>
@@ -132,7 +135,7 @@ namespace Geonorge.Forvaltning.Migrations
 
                     b.HasIndex("ForvaltningsObjektMetadataId");
 
-                    b.ToTable("ForvaltningsObjektPropertiesMetadata", (string)null);
+                    b.ToTable("ForvaltningsObjektPropertiesMetadata");
                 });
 
             modelBuilder.Entity("Geonorge.Forvaltning.Models.Entity.AccessByProperties", b =>

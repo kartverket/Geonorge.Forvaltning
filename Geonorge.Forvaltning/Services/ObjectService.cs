@@ -170,23 +170,7 @@ namespace Geonorge.Forvaltning.Services
                 if (current == null)
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
 
-                if (current.Name != objekt.Name)
-                {
-                    current.Name = objekt.Name;
-                    await _context.SaveChangesAsync();
-                }
-
-                if (current.Description != objekt.Description)
-                {
-                    current.Description = objekt.Description;
-                    await _context.SaveChangesAsync();
-                }
-
-                if (current.IsOpenData != objekt.IsOpenData)
-                {
-                    current.IsOpenData = objekt.IsOpenData;
-                    await _context.SaveChangesAsync();
-                }
+                await UpdateForvaltningObjektMetadata(current, objekt);
 
                 var currentProperties = current.ForvaltningsObjektPropertiesMetadata.Select(y => y.Id).ToList();
                 var changedProperties = objekt.Properties.Where(z => z.Id > 0).Select(n => n.Id).ToList();
@@ -375,7 +359,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task DeleteObjectAsync(int id)
         {
-            var user = await _authService.GetUserSupabase() ?? 
+            var user = await _authService.GetUserSupabase() ??
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             if (string.IsNullOrEmpty(user.OrganizationNumber))
@@ -429,7 +413,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task RequestAuthorizationAsync()
         {
-            var user = await _authService.GetUserSupabase() ?? 
+            var user = await _authService.GetUserSupabase() ??
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             if (!string.IsNullOrEmpty(user?.OrganizationNumber))
@@ -676,6 +660,44 @@ namespace Geonorge.Forvaltning.Services
             }
 
             return null;
+        }
+
+        private async Task UpdateForvaltningObjektMetadata(ForvaltningsObjektMetadata current, ObjectDefinitionEdit objekt)
+        {
+            var hasChanges = false;
+
+            if (current.Name != objekt.Name)
+            {
+                current.Name = objekt.Name;
+                hasChanges = true;
+            }
+
+            if (current.Description != objekt.Description)
+            {
+                current.Description = objekt.Description;
+                hasChanges = true;
+            }
+
+            if (current.IsOpenData != objekt.IsOpenData)
+            {
+                current.IsOpenData = objekt.IsOpenData;
+                hasChanges = true;
+            }
+
+            var currentAttachedIds = current.AttachedForvaltningObjektMetadataIds;
+            var attachedIds = objekt.AttachedForvaltningObjektMetadataIds;
+
+            if (currentAttachedIds != null && attachedIds != null &&
+                (currentAttachedIds.Count != attachedIds.Count || currentAttachedIds.Except(attachedIds).Any()) ||
+                currentAttachedIds == null && attachedIds != null ||
+                currentAttachedIds != null && attachedIds == null)
+            {
+                current.AttachedForvaltningObjektMetadataIds = objekt.AttachedForvaltningObjektMetadataIds;
+                hasChanges = true;
+            }
+
+            if (hasChanges)
+                await _context.SaveChangesAsync();
         }
     }
 
