@@ -64,7 +64,7 @@ namespace Geonorge.Forvaltning.Services
                 metadata.Name = o.Name;
                 metadata.Description = o.Description;
                 metadata.IsOpenData = o.IsOpenData;
-                metadata.srid = o.Srid ?? 4326;
+                metadata.AttachedForvaltningObjektMetadataIds = o.AttachedForvaltningObjektMetadataIds;
                 metadata.TableName = "";
                 metadata.ForvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
 
@@ -162,34 +162,30 @@ namespace Geonorge.Forvaltning.Services
 
             try
             {
-                var current = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).ThenInclude(ii => ii.AccessByProperties).FirstOrDefault();
+                var current = await _context.ForvaltningsObjektMetadata
+                    .Include(metadata => metadata.ForvaltningsObjektPropertiesMetadata)
+                        .ThenInclude(propMetadata => propMetadata.AccessByProperties)
+                    .SingleOrDefaultAsync(metadata => metadata.Id == id && metadata.Organization == user.OrganizationNumber);
+
                 if (current == null)
-                {
                     throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
-                }
 
                 if (current.Name != objekt.Name)
                 {
                     current.Name = objekt.Name;
-                    _context.SaveChanges();
+                    await _context.SaveChangesAsync();
                 }
 
                 if (current.Description != objekt.Description)
                 {
                     current.Description = objekt.Description;
-                    _context.SaveChanges();
+                    await _context.SaveChangesAsync();
                 }
 
                 if (current.IsOpenData != objekt.IsOpenData)
                 {
                     current.IsOpenData = objekt.IsOpenData;
-                    _context.SaveChanges();
-                }
-
-                if (current.srid != objekt.Srid)
-                {
-                    current.srid = objekt.Srid;
-                    _context.SaveChanges();
+                    await _context.SaveChangesAsync();
                 }
 
                 var currentProperties = current.ForvaltningsObjektPropertiesMetadata.Select(y => y.Id).ToList();
@@ -354,8 +350,6 @@ namespace Geonorge.Forvaltning.Services
                             _context.SaveChanges();
 
                         }
-
-
                     }
                 }
             }

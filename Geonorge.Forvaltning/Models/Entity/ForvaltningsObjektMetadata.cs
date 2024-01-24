@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Net.NetworkInformation;
 
 namespace Geonorge.Forvaltning.Models.Entity
 {
@@ -16,7 +15,7 @@ namespace Geonorge.Forvaltning.Models.Entity
         [StringLength(2000)]
         public string? Description { get; set; }
         public bool IsOpenData { get; set; }
-        public int? srid { get; set; }
+        public List<int>? AttachedForvaltningObjektMetadataIds { get; set; }
         [StringLength(31)]
         [Required]
         public string TableName { get; set; }
