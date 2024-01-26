@@ -1,5 +1,3 @@
-using GeoJSON.Text.Feature;
-using GeoJSON.Text.Geometry;
 using Geonorge.Forvaltning.Models;
 using Geonorge.Forvaltning.Models.Api;
 using Geonorge.Forvaltning.Models.Api.User;
@@ -10,8 +8,6 @@ using Microsoft.Extensions.Options;
 using MimeKit;
 using Npgsql;
 using System.Data;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 
 namespace Geonorge.Forvaltning.Services

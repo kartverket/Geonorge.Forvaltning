@@ -20,9 +20,10 @@ public class AnalysisService(
 {
     const double EarthRadius = 6371008.8;
 
-    public async Task<FeatureCollection> RunAnalysisAsync(int datasetId, AnalysisPayload payload)
+    public async Task<FeatureCollection> AnalyzeAsync(int datasetId, AnalysisPayload payload)
     {
-        var user = await authService.GetUserSupabaseAsync() ?? throw new Exception();
+        var user = await authService.GetUserSupabaseAsync() ?? 
+            throw new Exception();
 
         if (!CanAnalyze(datasetId, payload, user))
             throw new Exception();
@@ -53,6 +54,18 @@ public class AnalysisService(
         connection.Close();
 
         return new FeatureCollection(features);
+    }
+
+    public async Task<List<int>> GetAnalysableDatasetIdsAsync(int datasetId)
+    {
+        var user = await authService.GetUserSupabaseAsync() ??
+            throw new Exception();
+
+        return options.Value.Datasets
+            .Where(dataset => dataset.Id == datasetId &&
+                dataset.Organizations.Contains(user.OrganizationNumber))
+            .Select(dataset => dataset.AnalysisDatasetId)
+            .ToList();
     }
 
     private bool CanAnalyze(int datasetId, AnalysisPayload payload, User user)
