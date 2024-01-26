@@ -71,6 +71,10 @@ namespace Geonorge.Forvaltning.Services
                 int col = 1;
                 foreach (var item in o.Properties)
                 {
+                    if(item.AllowedValues != null && !item.AllowedValues.Any())
+                    {
+                        item.AllowedValues = null;
+                    }
                     metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber, AllowedValues = item.AllowedValues });
                     col++;
                 }
@@ -252,6 +256,11 @@ namespace Geonorge.Forvaltning.Services
                         cmd.CommandText = sql;
                         await cmd.ExecuteNonQueryAsync();
                         con.Close();
+
+                        if (item.AllowedValues != null && !item.AllowedValues.Any())
+                        {
+                            item.AllowedValues = null;
+                        }
 
                         //add columnName to metadata
                         current.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata
