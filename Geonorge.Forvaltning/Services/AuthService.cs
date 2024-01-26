@@ -1,16 +1,8 @@
 ﻿using Geonorge.Forvaltning.Models.Api.User;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 using Npgsql;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -54,7 +46,7 @@ namespace Geonorge.Forvaltning.Services
         //        return user;
         //}
 
-        public async Task<User> GetUserSupabase()
+        public async Task<User> GetUserSupabaseAsync()
         {
             User user = null;
             _httpContextAccessor.HttpContext.Request.Headers.TryGetValue("Authorization", out var authTokens);
@@ -79,7 +71,6 @@ namespace Geonorge.Forvaltning.Services
 
         private async Task<User> GetUserSupabase(string authToken, string apikey)
         {
-
             try
             {
                 var requestMessage = new HttpRequestMessage(HttpMethod.Get,
@@ -264,6 +255,6 @@ namespace Geonorge.Forvaltning.Services
     public interface IAuthService
     {
         //Task<User> GetUser();
-        Task<User> GetUserSupabase();
+        Task<User> GetUserSupabaseAsync();
     }
 }

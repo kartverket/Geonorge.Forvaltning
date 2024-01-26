@@ -1,3 +1,5 @@
+using GeoJSON.Text.Feature;
+using GeoJSON.Text.Geometry;
 using Geonorge.Forvaltning.Models;
 using Geonorge.Forvaltning.Models.Api;
 using Geonorge.Forvaltning.Models.Api.User;
@@ -7,6 +9,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using Npgsql;
+using System.Data;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -18,7 +24,12 @@ namespace Geonorge.Forvaltning.Services
         private readonly EmailConfiguration _configEmail;
         private readonly ILogger<ObjectService> _logger;
 
-        public ObjectService(ApplicationContext context, IAuthService authService, IOptions<DbConfiguration> config, IOptions<EmailConfiguration> configEmail, ILogger<ObjectService> logger)
+        public ObjectService(
+            ApplicationContext context, 
+            IAuthService authService, 
+            IOptions<DbConfiguration> config, 
+            IOptions<EmailConfiguration> configEmail, 
+            ILogger<ObjectService> logger)
         {
             _context = context;
             _authService = authService;
@@ -47,7 +58,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject> AddDefinition(ObjectDefinitionAdd o)
         {
-            User user = await _authService.GetUserSupabase();
+            User user = await _authService.GetUserSupabaseAsync();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
@@ -156,7 +167,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt)
         {
-            User user = await _authService.GetUserSupabase();
+            User user = await _authService.GetUserSupabaseAsync();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
@@ -368,7 +379,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task DeleteObjectAsync(int id)
         {
-            var user = await _authService.GetUserSupabase() ??
+            var user = await _authService.GetUserSupabaseAsync() ??
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             if (string.IsNullOrEmpty(user.OrganizationNumber))
@@ -422,7 +433,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task RequestAuthorizationAsync()
         {
-            var user = await _authService.GetUserSupabase() ??
+            var user = await _authService.GetUserSupabaseAsync() ??
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             if (!string.IsNullOrEmpty(user?.OrganizationNumber))
@@ -464,7 +475,7 @@ namespace Geonorge.Forvaltning.Services
         public async Task<object?> Access(ObjectAccess access)
         {
 
-            User user = await _authService.GetUserSupabase();
+            User user = await _authService.GetUserSupabaseAsync();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
