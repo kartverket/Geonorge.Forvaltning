@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using System.Dynamic;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -102,8 +103,8 @@ public class AnalysisService(
     private static string CreateSql(AnalysisPayload payload)
     {
         var coords = payload.Point.Coordinates;
-        var degrees = LengthToDegrees(payload.Distance * 1000);
-        var wkt = $"POINT ({coords.Longitude} {coords.Latitude})";
+        var wkt = FormattableString.Invariant($"POINT ({coords.Longitude} {coords.Latitude})");
+        var degrees = LengthToDegrees(payload.Distance * 1000).ToString(CultureInfo.InvariantCulture);
 
         var whereClauses = payload.Filters
             .Select(filter =>
