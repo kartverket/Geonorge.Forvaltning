@@ -7,17 +7,17 @@ using System.Text.Json.Nodes;
 namespace Geonorge.Forvaltning.HttpClients
 {
     public class PlaceSearchHttpClient(
-        HttpClient client,
-        IMemoryCache cache,
+        HttpClient httpClient,
+        IMemoryCache memoryCache,
         IOptions<PlaceSearchSettings> options) : IPlaceSearchHttpClient
     {
         private readonly Uri _apiUrl = options.Value.ApiUrl;
 
         public async Task<FeatureCollection> SearchAsync(string searchString, int crs)
         {
-            var key = $"_{searchString.ToLower()}_{crs}";
+            var key = $"place_{searchString.ToLower()}_{crs}";
 
-            return await cache.GetOrCreateAsync(key, async cacheEntry =>
+            return await memoryCache.GetOrCreateAsync(key, async cacheEntry =>
             {
                 cacheEntry.SlidingExpiration = TimeSpan.FromDays(1);
 
@@ -31,7 +31,7 @@ namespace Geonorge.Forvaltning.HttpClients
         {
             try
             {
-                using var response = await client.GetAsync($"{_apiUrl}&sok={searchString}*&utkoordsys={crs}");
+                using var response = await httpClient.GetAsync($"{_apiUrl}&sok={searchString}*&utkoordsys={crs}");
                 response.EnsureSuccessStatusCode();
                 var body = await response.Content.ReadAsStringAsync();
                 

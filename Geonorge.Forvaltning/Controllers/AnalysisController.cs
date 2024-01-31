@@ -10,12 +10,12 @@ public class AnalysisController(
     IAnalysisService analysisService,
     ILogger<AnalysisController> logger) : BaseController(logger)
 {
-    [HttpPost("{datasetId}")]
-    public async Task<IActionResult> Analyze(int datasetId, [FromBody] AnalysisPayload payload)
+    [HttpPost]
+    public async Task<IActionResult> Analyze([FromBody] AnalysisPayload payload)
     {
         try
         {
-            var result = await analysisService.AnalyzeAsync(datasetId, payload);
+            var result = await analysisService.AnalyzeAsync(payload);
 
             return Ok(result);
         }

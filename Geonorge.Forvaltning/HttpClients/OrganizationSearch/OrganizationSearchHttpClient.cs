@@ -1,40 +1,35 @@
-﻿using Geonorge.Forvaltning.HttpClients.OrganizationSearch;
+﻿using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System.Text.Json.Nodes;
 
 namespace Geonorge.Forvaltning.HttpClients
 {
     public class OrganizationSearchHttpClient(
-        HttpClient client,
-        OrganizationCache cache,
+        HttpClient httpClient,
+        IMemoryCache memoryCache,
         IOptions<OrganizationSearchSettings> options) : IOrganizationSearchHttpClient
     {
         private readonly Uri _apiUrl = options.Value.ApiUrl;
 
         public async Task<string> SearchAsync(string orgNo)
         {
-            var orgName = cache.GetOrganizationName(orgNo);
+            var key = $"organization_{orgNo}";
 
-            if (orgName != null)
-                return orgName;
+            return await memoryCache.GetOrCreateAsync(key, async cacheEntry =>
+            {
+                cacheEntry.SlidingExpiration = TimeSpan.FromDays(30);
 
-            var organization = await GetResponseAsync(orgNo);
+                var organization = await GetResponseAsync(orgNo);
 
-            if (organization == null)
-                return null;
-
-            orgName = organization["navn"].GetValue<string>();
-
-            cache.AddOrganization(orgNo, orgName);
-
-            return orgName;
+                return organization["navn"]?.GetValue<string>();
+            });
         }
 
         private async Task<JsonNode> GetResponseAsync(string orgNo)
         {
             try
             {
-                using var response = await client.GetAsync($"{_apiUrl}/{orgNo}");
+                using var response = await httpClient.GetAsync($"{_apiUrl}/{orgNo}");
                 response.EnsureSuccessStatusCode();
                 var body = await response.Content.ReadAsStringAsync();
                 

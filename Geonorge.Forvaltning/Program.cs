@@ -1,10 +1,10 @@
 using Geonorge.Forvaltning;
 using Geonorge.Forvaltning.HttpClients;
-using Geonorge.Forvaltning.HttpClients.OrganizationSearch;
 using Geonorge.Forvaltning.Models.Entity;
 using Geonorge.Forvaltning.Services;
 using LoggingWithSerilog.Middleware;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Reflection;
@@ -114,19 +114,25 @@ services.Configure<EmailConfiguration>(configuration.GetSection(EmailConfigurati
 services.Configure<SupabaseConfiguration>(configuration.GetSection(SupabaseConfiguration.SectionName));
 services.Configure<OrganizationSearchSettings>(configuration.GetSection(OrganizationSearchSettings.SectionName));
 services.Configure<PlaceSearchSettings>(configuration.GetSection(PlaceSearchSettings.SectionName));
+services.Configure<RouteSearchSettings>(configuration.GetSection(RouteSearchSettings.SectionName));
 services.Configure<AnalysisSettings>(configuration.GetSection(AnalysisSettings.SectionName));
 
 services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
 
 services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-services.AddSingleton<OrganizationCache>();
 
-services.AddTransient<IAuthService, AuthService>();
 services.AddTransient<IObjectService, ObjectService>();
 services.AddTransient<IAnalysisService, AnalysisService>();
 
+services.AddHttpClient<IAuthService, AuthService>();
 services.AddHttpClient<IPlaceSearchHttpClient, PlaceSearchHttpClient>();
 services.AddHttpClient<IOrganizationSearchHttpClient, OrganizationSearchHttpClient>();
+
+services.AddHttpClient<IRouteSearchHttpClient, RouteSearchHttpClient>((serviceProvider, httpClient) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<RouteSearchSettings>>();
+    httpClient.DefaultRequestHeaders.Add("Authorization", options.Value.ApiKey);
+});
 
 services.AddCors();
 
@@ -148,9 +154,6 @@ app.UseSwaggerUI(options =>
 {
     var url = $"{(!app.Environment.IsLocal() ? "/api" : "")}/docs/v1/openapi.json";
     options.SwaggerEndpoint(url, "Forvaltnings-api v1");
-    //url = $"{(!app.Environment.IsLocal() ? "/api" : "")}/custom.css";
-    //options.InjectStylesheet(url);
-
     options.RoutePrefix = "docs";
 });
 

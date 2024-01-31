@@ -5,7 +5,7 @@ namespace Geonorge.Forvaltning.Services
 {
     public interface IAnalysisService
     {
-        Task<FeatureCollection> AnalyzeAsync(int datasetId, AnalysisPayload payload);
+        Task<FeatureCollection> AnalyzeAsync(AnalysisPayload payload);
         Task<List<int>> GetAnalysableDatasetIdsAsync(int datasetId);
     }
 }

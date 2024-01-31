@@ -54,7 +54,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject> AddDefinition(ObjectDefinitionAdd o)
         {
-            User user = await _authService.GetUserSupabaseAsync();
+            User user = await _authService.GetUserFromSupabaseAsync();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
@@ -163,7 +163,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt)
         {
-            User user = await _authService.GetUserSupabaseAsync();
+            User user = await _authService.GetUserFromSupabaseAsync();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
@@ -375,7 +375,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task DeleteObjectAsync(int id)
         {
-            var user = await _authService.GetUserSupabaseAsync() ??
+            var user = await _authService.GetUserFromSupabaseAsync() ??
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             if (string.IsNullOrEmpty(user.OrganizationNumber))
@@ -429,7 +429,7 @@ namespace Geonorge.Forvaltning.Services
 
         public async Task RequestAuthorizationAsync()
         {
-            var user = await _authService.GetUserSupabaseAsync() ??
+            var user = await _authService.GetUserFromSupabaseAsync() ??
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             if (!string.IsNullOrEmpty(user?.OrganizationNumber))
@@ -471,7 +471,7 @@ namespace Geonorge.Forvaltning.Services
         public async Task<object?> Access(ObjectAccess access)
         {
 
-            User user = await _authService.GetUserSupabaseAsync();
+            User user = await _authService.GetUserFromSupabaseAsync();
 
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
