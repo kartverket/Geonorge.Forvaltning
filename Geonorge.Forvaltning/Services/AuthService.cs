@@ -9,7 +9,7 @@ namespace Geonorge.Forvaltning.Services
     public class AuthService(
         HttpClient httpClient,
         IHttpContextAccessor httpContextAccessor,
-        IOptions<DbConfiguration> dbconfig,
+        IOptions<DbConfiguration> dbConfig,
         IOptions<SupabaseConfiguration> supabaseConfig,
         ILogger<AuthService> logger) : IAuthService
     {
@@ -66,8 +66,8 @@ namespace Geonorge.Forvaltning.Services
             };
 
             var sql = "SELECT organization from public.users where id::text = $1";
-
-            await using var connection = new NpgsqlConnection(dbconfig.Value.ForvaltningApiDatabase);
+            
+            await using var connection = new NpgsqlConnection(dbConfig.Value.ForvaltningApiDatabase);
             connection.Open();
 
             await using var command = new NpgsqlCommand();

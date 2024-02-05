@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using System.Dynamic;
-using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -104,7 +103,7 @@ public class AnalysisService(
     {
         var coords = payload.Point.Coordinates;
         var wkt = FormattableString.Invariant($"POINT ({coords.Longitude} {coords.Latitude})");
-        var degrees = LengthToDegrees(payload.Distance * 1000).ToString(CultureInfo.InvariantCulture);
+        var distance = payload.Distance * 1000;
 
         var whereClauses = payload.Filters
             .Select(filter =>
@@ -119,9 +118,9 @@ public class AnalysisService(
 
         return @$"
             SELECT row_to_json(row) FROM (
-                SELECT public.t_{payload.TargetDatasetId}.*, ST_Distance('{wkt}', geometry) AS distance
+                SELECT public.t_{payload.TargetDatasetId}.*, ST_Distance('{wkt}'::geography, geometry) AS distance
                 FROM public.t_{payload.TargetDatasetId}
-                WHERE ST_DWithin(geometry, '{wkt}', {degrees}){string.Join("", whereClauses)}
+                WHERE ST_DWithin(geometry, '{wkt}'::geography, {distance}){string.Join("", whereClauses)}
                 ORDER BY distance
                 LIMIT {payload.Count}
             ) AS row;            
@@ -161,13 +160,5 @@ public class AnalysisService(
         property.Value = value;
 
         return property;
-    }
-
-    private static double LengthToDegrees(int distance)
-    {
-        var radians = distance / EarthRadius;
-        var degrees = radians % (2 * Math.PI);
-
-        return Math.Round(degrees * 180 / Math.PI, 6);
     }
 }

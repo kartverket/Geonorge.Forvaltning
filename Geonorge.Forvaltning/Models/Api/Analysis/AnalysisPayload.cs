@@ -1,6 +1,5 @@
 ﻿using GeoJSON.Text.Geometry;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace Geonorge.Forvaltning.Models.Api.Analysis;
 
