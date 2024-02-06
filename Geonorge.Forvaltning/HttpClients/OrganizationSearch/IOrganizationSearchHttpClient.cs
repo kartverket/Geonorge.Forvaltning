@@ -1,7 +1,6 @@
-﻿namespace Geonorge.Forvaltning.HttpClients
+﻿namespace Geonorge.Forvaltning.HttpClients;
+
+public interface IOrganizationSearchHttpClient
 {
-    public interface IOrganizationSearchHttpClient
-    {
-        Task<string> SearchAsync(string orgNo);
-    }
+    Task<string> SearchAsync(string orgNo);
 }

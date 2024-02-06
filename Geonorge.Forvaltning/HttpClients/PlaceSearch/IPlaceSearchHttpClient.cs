@@ -1,9 +1,8 @@
 ﻿using GeoJSON.Text.Feature;
 
-namespace Geonorge.Forvaltning.HttpClients
+namespace Geonorge.Forvaltning.HttpClients;
+
+public interface IPlaceSearchHttpClient
 {
-    public interface IPlaceSearchHttpClient
-    {
-        Task<FeatureCollection> SearchAsync(string searchString, int crs);
-    }
+    Task<FeatureCollection> SearchAsync(string searchString, int crs);
 }

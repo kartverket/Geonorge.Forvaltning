@@ -1,8 +1,7 @@
-﻿namespace Geonorge.Forvaltning.HttpClients
+﻿namespace Geonorge.Forvaltning.HttpClients;
+
+public class OrganizationSearchSettings
 {
-    public class OrganizationSearchSettings
-    {
-        public static readonly string SectionName = "OrganizationSearch";
-        public Uri ApiUrl { get; set; }
-    }
+    public static readonly string SectionName = "OrganizationSearch";
+    public Uri ApiUrl { get; set; }
 }

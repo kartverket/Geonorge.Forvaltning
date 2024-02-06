@@ -1,8 +1,7 @@
-﻿namespace Geonorge.Forvaltning.HttpClients
+﻿namespace Geonorge.Forvaltning.HttpClients;
+
+public class PlaceSearchSettings
 {
-    public class PlaceSearchSettings
-    {
-        public static readonly string SectionName = "PlaceSearch";
-        public Uri ApiUrl { get; set; }
-    }
+    public static readonly string SectionName = "PlaceSearch";
+    public Uri ApiUrl { get; set; }
 }

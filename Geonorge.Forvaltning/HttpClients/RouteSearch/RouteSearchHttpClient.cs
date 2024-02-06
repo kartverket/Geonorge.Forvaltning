@@ -80,7 +80,8 @@ public class RouteSearchHttpClient(
         {
             { "destinationId", destinationId },
             { "distance", resultProps["summary"]["distance"].GetValue<double>() },
-            { "duration", resultProps["summary"]["duration"].GetValue<double>() }
+            { "duration", resultProps["summary"]["duration"].GetValue<double>() },
+            { "_type", "route" }
         };
 
         return new Feature(feature.Geometry, properties);
@@ -91,7 +92,8 @@ public class RouteSearchHttpClient(
         var properties = new Dictionary<string, dynamic>
         {
             { "id", destinationId },
-            { "statusCode", (int)statusCode }
+            { "statusCode", (int)statusCode },
+            { "_type", "route" }
         };
 
         return new Feature(null, properties);

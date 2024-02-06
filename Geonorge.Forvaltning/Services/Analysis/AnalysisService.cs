@@ -20,8 +20,6 @@ public class AnalysisService(
     IOptions<AnalysisSettings> options,
     IOptions<DbConfiguration> dbOptions) : IAnalysisService
 {
-    private const double EarthRadius = 6371008.8;
-
     public async Task<FeatureCollection> AnalyzeAsync(AnalysisPayload payload)
     {
         var user = await authService.GetUserFromSupabaseAsync() ??
@@ -30,20 +28,25 @@ public class AnalysisService(
         if (!CanAnalyze(payload, user))
             throw new AuthorizationException("Brukeren er ikke autorisert");
 
-        var features = await QueryAsync(payload);
+        var start = await GetStartAsync(payload);
+        var startPoint = (Point)start.Geometry;
 
-        var tasks = features
+        var features = new List<Feature> { start };
+        var destinations = await GetDestinationsAsync(payload, startPoint);
+
+        var tasks = destinations
             .Select(feature =>
             {
                 var id = (dynamic)feature.Properties["id"];
                 var destinationId = (int)id.Value;
                 var destination = (Point)feature.Geometry;
 
-                return routeSearchHttpClient.SearchAsync(payload.Point, destination, destinationId);
+                return routeSearchHttpClient.SearchAsync(startPoint, destination, destinationId);
             });
 
         var routes = await Task.WhenAll(tasks);
-        
+
+        features.AddRange(destinations);
         features.AddRange(routes);
 
         return new FeatureCollection(features);
@@ -61,19 +64,48 @@ public class AnalysisService(
             .ToList();
     }
 
-    private async Task<List<Feature>> QueryAsync(AnalysisPayload payload)
+    private async Task<Feature> GetStartAsync(AnalysisPayload payload)
     {
-        var propertiesMetadata = await context.ForvaltningsObjektPropertiesMetadata
-            .Where(metadata => metadata.ForvaltningsObjektMetadataId == payload.TargetDatasetId)
-            .AsNoTracking()
-            .ToDictionaryAsync(metadata => metadata.ColumnName, metadata => metadata);
+        var propertiesMetadata = await GetPropertiesMetadataAsync(payload.DatasetId);
+        
+        var sql = @$"
+            SELECT row_to_json(row) FROM (
+                SELECT * FROM public.t_{payload.DatasetId} WHERE id = {payload.ObjectId}
+            ) AS row;
+        ";
 
         await using var connection = new NpgsqlConnection(dbOptions.Value.ForvaltningApiDatabase);
         connection.Open();
 
         await using var command = new NpgsqlCommand();
         command.Connection = connection;
-        command.CommandText = CreateSql(payload);
+        command.CommandText = sql;
+
+        await using var reader = await command.ExecuteReaderAsync();
+        Feature feature = null;
+
+        if (reader.HasRows)
+        {
+            await reader.ReadAsync();
+            using var document = await reader.GetFieldValueAsync<JsonDocument>(0);
+            feature = MapFeature(document, propertiesMetadata, "start");
+        }
+
+        connection.Close();
+
+        return feature;
+    }
+
+    private async Task<List<Feature>> GetDestinationsAsync(AnalysisPayload payload, Point startPoint)
+    {
+        var propertiesMetadata = await GetPropertiesMetadataAsync(payload.TargetDatasetId);
+
+        await using var connection = new NpgsqlConnection(dbOptions.Value.ForvaltningApiDatabase);
+        connection.Open();
+
+        await using var command = new NpgsqlCommand();
+        command.Connection = connection;
+        command.CommandText = CreateDestinationsSql(payload, startPoint);
 
         await using var reader = await command.ExecuteReaderAsync();
         var features = new List<Feature>();
@@ -81,7 +113,7 @@ public class AnalysisService(
         while (await reader.ReadAsync())
         {
             using var document = await reader.GetFieldValueAsync<JsonDocument>(0);
-            var feature = MapFeature(document, propertiesMetadata);
+            var feature = MapFeature(document, propertiesMetadata, "destination");
 
             features.Add(feature);
         }
@@ -99,9 +131,17 @@ public class AnalysisService(
                 dataset.Organizations.Contains(user.OrganizationNumber));
     }
 
-    private static string CreateSql(AnalysisPayload payload)
+    private async Task<Dictionary<string, ForvaltningsObjektPropertiesMetadata>> GetPropertiesMetadataAsync(int datasetId)
     {
-        var coords = payload.Point.Coordinates;
+        return await context.ForvaltningsObjektPropertiesMetadata
+            .Where(metadata => metadata.ForvaltningsObjektMetadataId == datasetId)
+            .AsNoTracking()
+            .ToDictionaryAsync(metadata => metadata.ColumnName, metadata => metadata);
+    }
+
+    private static string CreateDestinationsSql(AnalysisPayload payload, Point startPoint)
+    {
+        var coords = startPoint.Coordinates;
         var wkt = FormattableString.Invariant($"POINT ({coords.Longitude} {coords.Latitude})");
         var distance = payload.Distance * 1000;
 
@@ -127,7 +167,8 @@ public class AnalysisService(
         ";
     }
 
-    private static Feature MapFeature(JsonDocument document, Dictionary<string, ForvaltningsObjektPropertiesMetadata> propertiesMetadata)
+    private static Feature MapFeature(
+        JsonDocument document, Dictionary<string, ForvaltningsObjektPropertiesMetadata> propertiesMetadata, string type)
     {
         var jsonObject = document.Deserialize<JsonObject>();
         var featureId = jsonObject["id"].GetValue<int>();
@@ -145,6 +186,8 @@ public class AnalysisService(
                 if (propertiesMetadata.TryGetValue(kvp.Key, out var metadata))
                     properties.Add(kvp.Key, CreateProperty(metadata.Name, metadata.DataType, kvp.Value));
             });
+
+        properties.Add("_type", type);
 
         var geometry = JsonSerializer.Deserialize<IGeometryObject>(jsonObject["geometry"]);
 
