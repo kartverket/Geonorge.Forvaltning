@@ -4,9 +4,11 @@ using Geonorge.Forvaltning.Models.Entity;
 using Geonorge.Forvaltning.Services;
 using LoggingWithSerilog.Middleware;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Reflection;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -33,7 +35,12 @@ services.AddResponseCaching();
 
 services.AddMemoryCache();
 
-services.AddControllers();
+services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+    });
 
 services.AddEndpointsApiExplorer();
 
@@ -105,14 +112,27 @@ services.Configure<DbConfiguration>(configuration.GetSection(DbConfiguration.Sec
 services.Configure<AuthConfiguration>(configuration.GetSection(AuthConfiguration.SectionName));
 services.Configure<EmailConfiguration>(configuration.GetSection(EmailConfiguration.SectionName));
 services.Configure<SupabaseConfiguration>(configuration.GetSection(SupabaseConfiguration.SectionName));
+services.Configure<OrganizationSearchSettings>(configuration.GetSection(OrganizationSearchSettings.SectionName));
 services.Configure<PlaceSearchSettings>(configuration.GetSection(PlaceSearchSettings.SectionName));
+services.Configure<RouteSearchSettings>(configuration.GetSection(RouteSearchSettings.SectionName));
+services.Configure<AnalysisSettings>(configuration.GetSection(AnalysisSettings.SectionName));
 
 services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
 
 services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-services.AddTransient<IAuthService, AuthService>();
+
 services.AddTransient<IObjectService, ObjectService>();
+services.AddTransient<IAnalysisService, AnalysisService>();
+
+services.AddHttpClient<IAuthService, AuthService>();
 services.AddHttpClient<IPlaceSearchHttpClient, PlaceSearchHttpClient>();
+services.AddHttpClient<IOrganizationSearchHttpClient, OrganizationSearchHttpClient>();
+
+services.AddHttpClient<IRouteSearchHttpClient, RouteSearchHttpClient>((serviceProvider, httpClient) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<RouteSearchSettings>>();
+    httpClient.DefaultRequestHeaders.Add("Authorization", options.Value.ApiKey);
+});
 
 services.AddCors();
 
@@ -134,9 +154,6 @@ app.UseSwaggerUI(options =>
 {
     var url = $"{(!app.Environment.IsLocal() ? "/api" : "")}/docs/v1/openapi.json";
     options.SwaggerEndpoint(url, "Forvaltnings-api v1");
-    //url = $"{(!app.Environment.IsLocal() ? "/api" : "")}/custom.css";
-    //options.InjectStylesheet(url);
-
     options.RoutePrefix = "docs";
 });
 

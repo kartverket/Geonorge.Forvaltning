@@ -19,14 +19,13 @@ namespace Geonorge.Forvaltning.Models.Entity
         [Required]
         public string OrganizationNumber { get; set; }
         public List<string>? Contributors { get; set; }
-
         public List<string>? AllowedValues { get; set; }
         public int ForvaltningsObjektMetadataId { get; set; }
         public virtual ForvaltningsObjektMetadata ForvaltningsObjektMetadata { get; set; }
-
         public virtual List<AccessByProperties>? AccessByProperties { get; set; }
     }
 }
+
 //Todo enable RLS and create policy:
 
 //CREATE POLICY "MetadataProperties" ON "public"."ForvaltningsObjektPropertiesMetadata"

@@ -1,4 +1,5 @@
 ﻿using Geonorge.Forvaltning.Models.Api;
+using Geonorge.Forvaltning.Models.Api.Analysis;
 using Geonorge.Forvaltning.Services;
 using Microsoft.AspNetCore.Mvc;
 
