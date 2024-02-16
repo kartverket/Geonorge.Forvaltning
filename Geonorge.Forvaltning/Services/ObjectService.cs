@@ -545,7 +545,7 @@ namespace Geonorge.Forvaltning.Services
                 using var cmdViewer = new NpgsqlCommand();
                 cmdViewer.Connection = con;
                 cmdViewer.CommandText = sql;
-                await cmd.ExecuteNonQueryAsync();
+                await cmdViewer.ExecuteNonQueryAsync();
                 con.Close();
 
 
