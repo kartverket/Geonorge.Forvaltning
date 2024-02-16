@@ -5,6 +5,7 @@
         public int objekt { get; set; }
         public List<AccessByProperty> AccessByProperties { get; set; }
         public List<string>? Contributors { get; set; }
+        public List<string>? Viewers { get; set; }
     }
 
     public class AccessByProperty
