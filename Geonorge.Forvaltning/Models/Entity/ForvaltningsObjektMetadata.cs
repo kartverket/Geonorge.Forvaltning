@@ -9,6 +9,7 @@ namespace Geonorge.Forvaltning.Models.Entity
         [Required]
         public string Organization { get; set; }
         public List<string>? Contributors { get; set; }
+        public List<string>? Viewers { get; set; }
         [StringLength(255)]
         [Required]
         public string Name { get; set; }
@@ -57,3 +58,11 @@ namespace Geonorge.Forvaltning.Models.Entity
 //    users
 //  WHERE(("ForvaltningsObjektPropertiesMetadata"."Id" = "AccessByProperties"."ForvaltningsObjektPropertiesMetadataId") AND(users.organization = ANY("AccessByProperties"."Contributors")))))
 //)
+
+//CREATE POLICY "MetadataViewers" ON "public"."ForvaltningsObjektMetadata"
+
+//AS PERMISSIVE FOR SELECT
+
+//TO public
+
+//USING ((EXISTS (SELECT* FROM users WHERE (users.organization = ANY("ForvaltningsObjektMetadata"."Viewers")))))

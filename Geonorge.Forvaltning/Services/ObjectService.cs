@@ -117,6 +117,7 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + ", editor text  ";
                 sql = sql + ", owner_org text  ";
                 sql = sql + ", contributor_org text[]  ";
+                sql = sql + ", viewer_org text[]  ";
 
                 sql = sql + " ); ";
 
@@ -130,6 +131,7 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + "alter table " + metadata.TableName + " enable row level security;";
                 sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
                 sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\"))))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\")))))));";
+                sql = sql + "CREATE POLICY \"Viewer\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".viewer_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Viewers\")))))));";
                 var con = new NpgsqlConnection(
                 connectionString: _config.ForvaltningApiDatabase);
                 con.Open();
@@ -487,6 +489,8 @@ namespace Geonorge.Forvaltning.Services
 
             ValidateOrganizationNumbers(access.Contributors);
 
+            ValidateOrganizationNumbers(access.Viewers);
+
             try
             {
                 var objekt = _context.ForvaltningsObjektMetadata.Where(x => x.Id == access.objekt && x.Organization == user.OrganizationNumber).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
@@ -501,6 +505,15 @@ namespace Geonorge.Forvaltning.Services
                 foreach (var prop in objekt.ForvaltningsObjektPropertiesMetadata)
                 {
                     prop.Contributors = access.Contributors;
+                    _context.SaveChanges();
+                }
+
+                objekt.Viewers = access.Viewers;
+                _context.SaveChanges();
+
+                foreach (var prop in objekt.ForvaltningsObjektPropertiesMetadata)
+                {
+                    prop.Viewers = access.Viewers;
                     _context.SaveChanges();
                 }
 
@@ -522,6 +535,17 @@ namespace Geonorge.Forvaltning.Services
                 cmd.Connection = con;
                 cmd.CommandText = sql;
                 await cmd.ExecuteNonQueryAsync();
+                con.Close();
+
+                //Remove rights viewer
+                sql = "UPDATE " + objekt.TableName + " SET viewer_org = NULL;";
+                con = new NpgsqlConnection(
+                connectionString: _config.ForvaltningApiDatabase);
+                con.Open();
+                using var cmdViewer = new NpgsqlCommand();
+                cmdViewer.Connection = con;
+                cmdViewer.CommandText = sql;
+                await cmdViewer.ExecuteNonQueryAsync();
                 con.Close();
 
 
@@ -571,6 +595,20 @@ namespace Geonorge.Forvaltning.Services
                 List<string> contributors = new List<string>();
 
                 //Set new rights
+
+                if (access.Viewers != null && access.Viewers.Count > 0)
+                {
+
+                    sql = "UPDATE " + objekt.TableName + " SET viewer_org = '{" + string.Join(",", objekt.Viewers) + "}'::text[];";
+                    con = new NpgsqlConnection(
+                    connectionString: _config.ForvaltningApiDatabase);
+                    con.Open();
+                    using var cmd2b = new NpgsqlCommand();
+                    cmd2b.Connection = con;
+                    cmd2b.CommandText = sql;
+                    await cmd2b.ExecuteNonQueryAsync();
+                    con.Close();
+                }
 
 
                 if (!hasPropertyAccess && access.Contributors != null && access.Contributors.Count > 0)
