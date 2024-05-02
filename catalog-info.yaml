@@ -1,0 +1,56 @@
+# nonk8s
+apiVersion: "backstage.io/v1alpha1"
+kind: "Component"
+metadata:
+  name: "Geonorge.Forvaltning"
+  tags:
+  - "public"
+spec:
+  type: "service"
+  lifecycle: "production"
+  owner: "datadeling_og_distribusjon"
+  system: "geonorge"
+  providesApis:
+  - "Geonorge.Forvaltning-api"
+---
+apiVersion: "backstage.io/v1alpha1"
+kind: "Group"
+metadata:
+  name: "security_champion_Geonorge.Forvaltning"
+  title: "Security Champion Geonorge.Forvaltning"
+spec:
+  type: "security_champion"
+  parent: "land_security_champions"
+  members:
+  - "dagolav"
+  children:
+  - "resource:Geonorge.Forvaltning"
+---
+apiVersion: "backstage.io/v1alpha1"
+kind: "Resource"
+metadata:
+  name: "Geonorge.Forvaltning"
+  links:
+  - url: "https://github.com/kartverket/Geonorge.Forvaltning"
+    title: "Geonorge.Forvaltning på GitHub"
+spec:
+  type: "repo"
+  owner: "security_champion_Geonorge.Forvaltning"
+  dependencyOf:
+  - "component:Geonorge.Forvaltning"
+---
+apiVersion: "backstage.io/v1alpha1"
+kind: "API"
+metadata:
+  name: "Geonorge.Forvaltning-api"
+  tags:
+  - "public"
+spec:
+  type: "openapi"
+  lifecycle: "production"
+  owner: "datadeling_og_distribusjon"
+  definition: |
+    openapi: "3.0.0"
+    info:
+        title: Geonorge.Forvaltning API
+    paths:
