@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using MimeKit;
 using Npgsql;
 using System.Data;
+using System.Security.Cryptography;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -753,6 +754,38 @@ namespace Geonorge.Forvaltning.Services
             if (hasChanges)
                 await _context.SaveChangesAsync();
         }
+
+        public async Task<object> EditTag(int datasetId, int id, string tag)
+        {
+            var user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            //todo check if user has access to dataset
+
+            try
+            {
+                var table = "t_" + datasetId;
+                var sql = $"UPDATE {table} set tag = @tag where id= @id";
+                var con = new NpgsqlConnection(
+                connectionString: _config.ForvaltningApiDatabase);
+                con.Open();
+                using var cmd = new NpgsqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = sql;
+                cmd.Parameters.AddWithValue("@tag", tag);
+                cmd.Parameters.AddWithValue("@id", id);
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError("Error: {exception}", exception);
+                throw new Exception("Feil ved lagring av data");
+            }
+            return null;
+        }
     }
 
     public interface IObjectService
@@ -761,6 +794,7 @@ namespace Geonorge.Forvaltning.Services
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task DeleteObjectAsync(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
+        Task<object> EditTag(int datasetId, int id, string tag);
         Task RequestAuthorizationAsync();
     }
 }

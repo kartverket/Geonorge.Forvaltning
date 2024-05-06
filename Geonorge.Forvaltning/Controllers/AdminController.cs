@@ -113,5 +113,24 @@ namespace Geonorge.Forvaltning.Controllers
                 throw;
             }
         }
+
+        [HttpPut("tag/{datasetId:int}/{id:int}/{tag}", Name = "PutTag")]
+        public async Task<IActionResult> PutTag(int datasetId, int id, string tag)
+        {
+            try
+            {
+                return Ok(await _objectService.EditTag(datasetId, id, tag));
+            }
+            catch (Exception ex)
+            {
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
+            }
+        }
+
     }
 }
