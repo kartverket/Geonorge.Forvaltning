@@ -21,7 +21,21 @@ namespace Geonorge.Forvaltning.Services
         private readonly EmailConfiguration _configEmail;
         private readonly ILogger<ObjectService> _logger;
 
-        public ObjectService(
+        private List<string> _countyGovernors = new List<string>()
+                    {
+                        "974762994",
+                        "974761645",
+                        "974764067",
+                        "974764687",
+                        "974761319",
+                        "974763230",
+                        "967311014",
+                        "974764350",
+                        "974762501",
+                        "974760665",
+                    };
+
+    public ObjectService(
             ApplicationContext context, 
             IAuthService authService, 
             IOptions<DbConfiguration> config, 
@@ -762,10 +776,15 @@ namespace Geonorge.Forvaltning.Services
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
-            //todo check if user has access to dataset
-
             try
             {
+                var owner =  _context.ForvaltningsObjektMetadata
+                .Any(metadata => metadata.Id == datasetId && metadata.Organization == user.OrganizationNumber);
+
+                if (!owner)
+                    if(!_countyGovernors.Contains(user.OrganizationNumber))
+                        throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
+
                 var table = "t_" + datasetId;
                 var sql = $"UPDATE {table} set tag = @tag where id= @id";
                 var con = new NpgsqlConnection(
