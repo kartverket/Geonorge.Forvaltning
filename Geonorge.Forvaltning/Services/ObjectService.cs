@@ -33,6 +33,7 @@ namespace Geonorge.Forvaltning.Services
                         "974764350",
                         "974762501",
                         "974760665",
+                        "921627009"
                     };
 
     public ObjectService(
