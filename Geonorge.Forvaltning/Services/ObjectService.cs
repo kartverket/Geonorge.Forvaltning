@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using MimeKit;
 using Npgsql;
 using System.Data;
+using System.Security.Cryptography;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -20,7 +21,22 @@ namespace Geonorge.Forvaltning.Services
         private readonly EmailConfiguration _configEmail;
         private readonly ILogger<ObjectService> _logger;
 
-        public ObjectService(
+        private List<string> _countyGovernors = new List<string>()
+                    {
+                        "974762994",
+                        "974761645",
+                        "974764067",
+                        "974764687",
+                        "974761319",
+                        "974763230",
+                        "967311014",
+                        "974764350",
+                        "974762501",
+                        "974760665",
+                        "921627009"
+                    };
+
+    public ObjectService(
             ApplicationContext context, 
             IAuthService authService, 
             IOptions<DbConfiguration> config, 
@@ -753,6 +769,43 @@ namespace Geonorge.Forvaltning.Services
             if (hasChanges)
                 await _context.SaveChangesAsync();
         }
+
+        public async Task<object> EditTag(int datasetId, int id, string tag)
+        {
+            var user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            try
+            {
+                var owner =  _context.ForvaltningsObjektMetadata
+                .Any(metadata => metadata.Id == datasetId && metadata.Organization == user.OrganizationNumber);
+
+                if (!owner)
+                    if(!_countyGovernors.Contains(user.OrganizationNumber))
+                        throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
+
+                var table = "t_" + datasetId;
+                var sql = $"UPDATE {table} set tag = @tag where id= @id";
+                var con = new NpgsqlConnection(
+                connectionString: _config.ForvaltningApiDatabase);
+                con.Open();
+                using var cmd = new NpgsqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = sql;
+                cmd.Parameters.AddWithValue("@tag", tag);
+                cmd.Parameters.AddWithValue("@id", id);
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError("Error: {exception}", exception);
+                throw new Exception("Feil ved lagring av data");
+            }
+            return null;
+        }
     }
 
     public interface IObjectService
@@ -761,6 +814,7 @@ namespace Geonorge.Forvaltning.Services
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task DeleteObjectAsync(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
+        Task<object> EditTag(int datasetId, int id, string tag);
         Task RequestAuthorizationAsync();
     }
 }
