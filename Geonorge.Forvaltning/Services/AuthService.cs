@@ -68,7 +68,7 @@ namespace Geonorge.Forvaltning.Services
             var sql = "SELECT organization from public.users where id::text = $1";
             
             await using var connection = new NpgsqlConnection(dbConfig.Value.ForvaltningApiDatabase);
-            connection.Open();
+            await connection.OpenAsync();
 
             await using var command = new NpgsqlCommand();
             command.Parameters.AddWithValue(userId);
