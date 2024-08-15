@@ -117,7 +117,8 @@ services.Configure<PlaceSearchSettings>(configuration.GetSection(PlaceSearchSett
 services.Configure<RouteSearchSettings>(configuration.GetSection(RouteSearchSettings.SectionName));
 services.Configure<AnalysisSettings>(configuration.GetSection(AnalysisSettings.SectionName));
 
-services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(builder.Configuration.GetConnectionString("ForvaltningApiDatabase")));
+services.AddDbContext<ApplicationContext>(opts => opts.UseNpgsql(configuration["ConnectionStrings:ForvaltningApiDatabase"]));
+services.AddNpgsqlDataSource(configuration["ConnectionStrings:ForvaltningApiDatabase"]);
 
 services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 

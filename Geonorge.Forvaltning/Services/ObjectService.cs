@@ -20,6 +20,7 @@ namespace Geonorge.Forvaltning.Services
         private readonly DbConfiguration _config;
         private readonly EmailConfiguration _configEmail;
         private readonly ILogger<ObjectService> _logger;
+        private readonly NpgsqlConnection _connection;
 
         private List<string> _countyGovernors = new List<string>()
                     {
@@ -37,7 +38,8 @@ namespace Geonorge.Forvaltning.Services
                     };
 
     public ObjectService(
-            ApplicationContext context, 
+            ApplicationContext context,
+            NpgsqlConnection connection,
             IAuthService authService, 
             IOptions<DbConfiguration> config, 
             IOptions<EmailConfiguration> configEmail, 
@@ -48,6 +50,7 @@ namespace Geonorge.Forvaltning.Services
             _config = config.Value;
             _configEmail = configEmail.Value;
             _logger = logger;
+            _connection = connection;
         }
 
         public static void ValidateOrganizationNumber(string number)
@@ -148,14 +151,13 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
                 sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\"))))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\")))))));";
                 sql = sql + "CREATE POLICY \"Viewer\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".viewer_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Viewers\")))))));";
-                var con = new NpgsqlConnection(
-                connectionString: _config.ForvaltningApiDatabase);
-                con.Open();
+                
+                _connection.Open();
                 using var cmd = new NpgsqlCommand();
-                cmd.Connection = con;
+                cmd.Connection = _connection;
                 cmd.CommandText = sql;
                 await cmd.ExecuteNonQueryAsync();
-                con.Close();
+                _connection.Close();
 
                 var created = new DataObject { definition = new ObjectDefinition { Id = metadata.Id } };  //await GetMetadataObject(metadata.Id);
 
@@ -212,14 +214,12 @@ namespace Geonorge.Forvaltning.Services
                     var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == itemToRemove).Select(co => co.ColumnName).FirstOrDefault();
                     //DROP COLUMN 
                     var sql = "ALTER TABLE " + current.TableName + " DROP COLUMN " + columnName + ";";
-                    var con = new NpgsqlConnection(
-                    connectionString: _config.ForvaltningApiDatabase);
-                    con.Open();
+                    _connection.Open();
                     using var cmd = new NpgsqlCommand();
-                    cmd.Connection = con;
+                    cmd.Connection = _connection;
                     cmd.CommandText = sql;
                     await cmd.ExecuteNonQueryAsync();
-                    con.Close();
+                    _connection.Close();
                     //delete row from ForvaltningsObjektPropertiesMetadata
                     var itemToDelete = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == itemToRemove).Single();
                     _context.ForvaltningsObjektPropertiesMetadata.Remove(itemToDelete);
@@ -242,11 +242,9 @@ namespace Geonorge.Forvaltning.Services
 
                         //Get last column number
                         var sqlC = "select CAST(replace(\"ColumnName\",'c_','') as int) as num from \"ForvaltningsObjektPropertiesMetadata\" where \"ForvaltningsObjektMetadataId\" = $1 order by CAST(replace(\"ColumnName\", 'c_', '') as int) desc";
-                        var conC = new NpgsqlConnection(
-                        connectionString: _config.ForvaltningApiDatabase);
-                        conC.Open();
+                        _connection.Open();
                         using var cmdC = new NpgsqlCommand();
-                        cmdC.Connection = conC;
+                        cmdC.Connection = _connection;
                         cmdC.CommandText = sqlC;
                         cmdC.Parameters.AddWithValue(current.Id);
 
@@ -256,7 +254,7 @@ namespace Geonorge.Forvaltning.Services
 
                         var lastColumn = reader.GetInt32(0);
 
-                        conC.Close();
+                        _connection.Close();
 
 
                         var columnName = "c_" + (lastColumn + 1);
@@ -273,14 +271,12 @@ namespace Geonorge.Forvaltning.Services
 
                         sql = sql + sqlConstraints;
 
-                        var con = new NpgsqlConnection(
-                        connectionString: _config.ForvaltningApiDatabase);
-                        con.Open();
+                        _connection.Open();
                         using var cmd = new NpgsqlCommand();
-                        cmd.Connection = con;
+                        cmd.Connection = _connection;
                         cmd.CommandText = sql;
                         await cmd.ExecuteNonQueryAsync();
-                        con.Close();
+                        _connection.Close();
 
                         if (item.AllowedValues != null && !item.AllowedValues.Any())
                         {
@@ -309,14 +305,13 @@ namespace Geonorge.Forvaltning.Services
                         if (dataType != item.DataType)
                         {
                             var sql = "ALTER TABLE " + current.TableName + " ALTER COLUMN " + columnName + " SET DATA TYPE " + sqlDataType + ";";
-                            var con = new NpgsqlConnection(
-                            connectionString: _config.ForvaltningApiDatabase);
-                            con.Open();
+
+                            _connection.Open();
                             using var cmd = new NpgsqlCommand();
-                            cmd.Connection = con;
+                            cmd.Connection = _connection;
                             cmd.CommandText = sql;
                             await cmd.ExecuteNonQueryAsync();
-                            con.Close();
+                            _connection.Close();
 
                             var attributes = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).FirstOrDefault();
 
@@ -355,14 +350,12 @@ namespace Geonorge.Forvaltning.Services
                                 sqlConstraints = sqlConstraints + ", ADD CONSTRAINT allowed_" + current.TableName + "_" + columnName;
                                 sqlConstraints = sqlConstraints + " CHECK(" + columnName + " = ANY('{" + string.Join(",", item.AllowedValues) + "}'::text[]));";
                             }
-                            var con = new NpgsqlConnection(
-                            connectionString: _config.ForvaltningApiDatabase);
-                            con.Open();
+                            _connection.Open();
                             using var cmd = new NpgsqlCommand();
-                            cmd.Connection = con;
+                            cmd.Connection = _connection;
                             cmd.CommandText = sqlConstraints;
                             await cmd.ExecuteNonQueryAsync();
-                            con.Close();
+                            _connection.Close();
 
                             property.AllowedValues = item.AllowedValues;
                             _context.SaveChanges();
@@ -418,15 +411,14 @@ namespace Geonorge.Forvaltning.Services
 
                 var sql = $"DROP TABLE {objekt.TableName};";
 
-                using var connection = new NpgsqlConnection(connectionString: _config.ForvaltningApiDatabase);
-                connection.Open();
+                _connection.Open();
 
                 using var command = new NpgsqlCommand();
-                command.Connection = connection;
+                command.Connection = _connection;
                 command.CommandText = sql;
 
                 await command.ExecuteNonQueryAsync();
-                connection.Close();
+                _connection.Close();
             }
             catch (NpgsqlException exception)
             {
@@ -544,25 +536,21 @@ namespace Geonorge.Forvaltning.Services
 
                 //Remove rights contributor
                 var sql = "UPDATE " + objekt.TableName + " SET contributor_org = NULL;";
-                var con = new NpgsqlConnection(
-                connectionString: _config.ForvaltningApiDatabase);
-                con.Open();
+                _connection.Open();
                 using var cmd = new NpgsqlCommand();
-                cmd.Connection = con;
+                cmd.Connection = _connection;
                 cmd.CommandText = sql;
                 await cmd.ExecuteNonQueryAsync();
-                con.Close();
+                _connection.Close();
 
                 //Remove rights viewer
                 sql = "UPDATE " + objekt.TableName + " SET viewer_org = NULL;";
-                con = new NpgsqlConnection(
-                connectionString: _config.ForvaltningApiDatabase);
-                con.Open();
+                _connection.Open();
                 using var cmdViewer = new NpgsqlCommand();
-                cmdViewer.Connection = con;
+                cmdViewer.Connection = _connection;
                 cmdViewer.CommandText = sql;
                 await cmdViewer.ExecuteNonQueryAsync();
-                con.Close();
+                _connection.Close();
 
 
                 //Remove old policy
@@ -570,11 +558,10 @@ namespace Geonorge.Forvaltning.Services
                 List<string> removeIds = new List<string>();
 
                 sql = "Select \"Id\" FROM \"AccessByProperties\"  where \"ForvaltningsObjektPropertiesMetadataId\" IN (SELECT \"Id\" FROM \"ForvaltningsObjektPropertiesMetadata\" WHERE \"ForvaltningsObjektMetadataId\" = " + objekt.Id + ")";
-                con = new NpgsqlConnection(
-                connectionString: _config.ForvaltningApiDatabase);
-                con.Open();
+
+                _connection.Open();
                 using var cmd2 = new NpgsqlCommand();
-                cmd2.Connection = con;
+                cmd2.Connection = _connection;
                 cmd2.CommandText = sql;
                 using var reader = await cmd2.ExecuteReaderAsync();
                 while (await reader.ReadAsync())
@@ -582,31 +569,28 @@ namespace Geonorge.Forvaltning.Services
                     removeIds.Add(reader["Id"].ToString());
                 }
 
+                _connection.Close();
+
                 foreach (var id in removeIds)
                 {
                     sql = "DROP POLICY IF EXISTS \"Property" + id + "\" ON " + objekt.TableName;
-                    con = new NpgsqlConnection(
-                    connectionString: _config.ForvaltningApiDatabase);
-                    con.Open();
+                    _connection.Open();
                     using var cmd3 = new NpgsqlCommand();
-                    cmd3.Connection = con;
+                    cmd3.Connection = _connection;
                     cmd3.CommandText = sql;
                     await cmd3.ExecuteNonQueryAsync();
-                    con.Close();
+                    _connection.Close();
                 }
-
-                con.Close();
 
                 //Remove AccessByProperties config
                 sql = "DELETE FROM \"AccessByProperties\" where \"ForvaltningsObjektPropertiesMetadataId\" IN (SELECT \"Id\" FROM \"ForvaltningsObjektPropertiesMetadata\" WHERE \"ForvaltningsObjektMetadataId\" = " + objekt.Id + ")";
-                con = new NpgsqlConnection(
-                connectionString: _config.ForvaltningApiDatabase);
-                con.Open();
+
+                _connection.Open();
                 using var cmd4 = new NpgsqlCommand();
-                cmd4.Connection = con;
+                cmd4.Connection = _connection;
                 cmd4.CommandText = sql;
                 await cmd4.ExecuteNonQueryAsync();
-                con.Close();
+                _connection.Close();
 
                 List<string> contributors = new List<string>();
 
@@ -616,14 +600,13 @@ namespace Geonorge.Forvaltning.Services
                 {
 
                     sql = "UPDATE " + objekt.TableName + " SET viewer_org = '{" + string.Join(",", objekt.Viewers) + "}'::text[];";
-                    con = new NpgsqlConnection(
-                    connectionString: _config.ForvaltningApiDatabase);
-                    con.Open();
+
+                    _connection.Open();
                     using var cmd2b = new NpgsqlCommand();
-                    cmd2b.Connection = con;
+                    cmd2b.Connection = _connection;
                     cmd2b.CommandText = sql;
                     await cmd2b.ExecuteNonQueryAsync();
-                    con.Close();
+                    _connection.Close();
                 }
 
 
@@ -631,14 +614,13 @@ namespace Geonorge.Forvaltning.Services
                 {
 
                     sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", objekt.Contributors) + "}'::text[];";
-                    con = new NpgsqlConnection(
-                    connectionString: _config.ForvaltningApiDatabase);
-                    con.Open();
+
+                    _connection.Open();
                     using var cmd2b = new NpgsqlCommand();
-                    cmd2b.Connection = con;
+                    cmd2b.Connection = _connection;
                     cmd2b.CommandText = sql;
                     await cmd2b.ExecuteNonQueryAsync();
-                    con.Close();
+                    _connection.Close();
                 }
 
                 else
@@ -680,26 +662,24 @@ namespace Geonorge.Forvaltning.Services
                             }
 
                             sql = "CREATE POLICY \"Property" + accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
-                            con = new NpgsqlConnection(
-                            connectionString: _config.ForvaltningApiDatabase);
-                            con.Open();
+
+                            _connection.Open();
                             using var cmd3 = new NpgsqlCommand();
-                            cmd3.Connection = con;
+                            cmd3.Connection = _connection;
                             cmd3.CommandText = sql;
                             await cmd3.ExecuteNonQueryAsync();
-                            con.Close();
+                            _connection.Close();
 
                             //Update table with contributor_org
                             sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "=@value;";
-                            con = new NpgsqlConnection(
-                            connectionString: _config.ForvaltningApiDatabase);
-                            con.Open();
+
+                            _connection.Open();
                             using var cmd5 = new NpgsqlCommand();
                             cmd5.Parameters.AddWithValue("@value", sqlValue);
-                            cmd5.Connection = con;
+                            cmd5.Connection = _connection;
                             cmd5.CommandText = sql;
                             await cmd5.ExecuteNonQueryAsync();
-                            con.Close();
+                            _connection.Close();
 
                         }
 
@@ -788,11 +768,9 @@ namespace Geonorge.Forvaltning.Services
 
                 var table = "t_" + datasetId;
                 var sql = $"UPDATE {table} set tag = @tag where id= @id";
-                var con = new NpgsqlConnection(
-                connectionString: _config.ForvaltningApiDatabase);
-                con.Open();
+                _connection.Open();
                 using var cmd = new NpgsqlCommand();
-                cmd.Connection = con;
+                cmd.Connection = _connection;
                 cmd.CommandText = sql;
                 cmd.Parameters.AddWithValue("@tag", tag);
                 cmd.Parameters.AddWithValue("@id", id);

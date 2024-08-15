@@ -1,8 +1,10 @@
 ﻿using Geonorge.Forvaltning.Models.Api.User;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using System;
 using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace Geonorge.Forvaltning.Services
 {
@@ -11,7 +13,8 @@ namespace Geonorge.Forvaltning.Services
         IHttpContextAccessor httpContextAccessor,
         IOptions<DbConfiguration> dbConfig,
         IOptions<SupabaseConfiguration> supabaseConfig,
-        ILogger<AuthService> logger) : IAuthService
+        ILogger<AuthService> logger,
+        NpgsqlConnection connection) : IAuthService
     {
         public async Task<User> GetUserFromSupabaseAsync()
         {
@@ -66,32 +69,36 @@ namespace Geonorge.Forvaltning.Services
             };
 
             var sql = "SELECT organization from public.users where id::text = $1";
-            
-            await using var connection = new NpgsqlConnection(dbConfig.Value.ForvaltningApiDatabase);
-            await connection.OpenAsync();
 
-            await using var command = new NpgsqlCommand();
+            var dataSourceBuilder = new NpgsqlDataSourceBuilder(dbConfig.Value.ForvaltningApiDatabase);
+            await using var dataSource = dataSourceBuilder.Build();
+
+            connection = await dataSource.OpenConnectionAsync();
+
+            await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue(userId);
-            command.Connection = connection;
-            command.CommandText = sql;
 
             await using var reader = await command.ExecuteReaderAsync();
 
             if (reader.HasRows)
             {
                 await reader.ReadAsync();
-                
+
                 if (!reader.IsDBNull(0))
                     user.OrganizationNumber = reader.GetString(0);
             }
 
-            connection.Close();
+            await reader.CloseAsync();
+            await command.DisposeAsync();
+
+            await connection.CloseAsync();
+            await connection.DisposeAsync();
 
             return user;
         }
     }
 
-    public interface IAuthService
+        public interface IAuthService
     {
         Task<User> GetUserFromSupabaseAsync();
     }
