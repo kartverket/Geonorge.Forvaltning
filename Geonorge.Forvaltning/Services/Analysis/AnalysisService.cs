@@ -15,11 +15,13 @@ namespace Geonorge.Forvaltning.Services;
 
 public class AnalysisService(
     ApplicationContext context,
+    NpgsqlConnection connection,
     IRouteSearchHttpClient routeSearchHttpClient,
     IAuthService authService,
     IOptions<AnalysisSettings> options,
     IOptions<DbConfiguration> dbOptions) : IAnalysisService
 {
+
     public async Task<FeatureCollection> AnalyzeAsync(AnalysisPayload payload)
     {
         var user = await authService.GetUserFromSupabaseAsync() ??
@@ -74,7 +76,6 @@ public class AnalysisService(
             ) AS row;
         ";
 
-        await using var connection = new NpgsqlConnection(dbOptions.Value.ForvaltningApiDatabase);
         connection.Open();
 
         await using var command = new NpgsqlCommand();
@@ -100,7 +101,6 @@ public class AnalysisService(
     {
         var propertiesMetadata = await GetPropertiesMetadataAsync(payload.TargetDatasetId);
 
-        await using var connection = new NpgsqlConnection(dbOptions.Value.ForvaltningApiDatabase);
         connection.Open();
 
         await using var command = new NpgsqlCommand();
