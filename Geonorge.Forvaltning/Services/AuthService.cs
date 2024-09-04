@@ -70,10 +70,7 @@ namespace Geonorge.Forvaltning.Services
 
             var sql = "SELECT organization from public.users where id::text = $1";
 
-            var dataSourceBuilder = new NpgsqlDataSourceBuilder(dbConfig.Value.ForvaltningApiDatabase);
-            await using var dataSource = dataSourceBuilder.Build();
-
-            connection = await dataSource.OpenConnectionAsync();
+            connection.Open();
 
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue(userId);
@@ -88,11 +85,10 @@ namespace Geonorge.Forvaltning.Services
                     user.OrganizationNumber = reader.GetString(0);
             }
 
-            await reader.CloseAsync();
-            await command.DisposeAsync();
+            reader.Close();
+            command.Dispose();
 
-            await connection.CloseAsync();
-            await connection.DisposeAsync();
+            connection.Close();
 
             return user;
         }
