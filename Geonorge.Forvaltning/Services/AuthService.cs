@@ -1,17 +1,14 @@
 ﻿using Geonorge.Forvaltning.Models.Api.User;
 using Microsoft.Extensions.Options;
 using Npgsql;
-using System;
 using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace Geonorge.Forvaltning.Services
 {
     public class AuthService(
         HttpClient httpClient,
         IHttpContextAccessor httpContextAccessor,
-        IOptions<DbConfiguration> dbConfig,
         IOptions<SupabaseConfiguration> supabaseConfig,
         ILogger<AuthService> logger,
         NpgsqlConnection connection) : IAuthService
@@ -87,14 +84,13 @@ namespace Geonorge.Forvaltning.Services
 
             reader.Close();
             command.Dispose();
-
             connection.Close();
 
             return user;
         }
     }
 
-        public interface IAuthService
+    public interface IAuthService
     {
         Task<User> GetUserFromSupabaseAsync();
     }
