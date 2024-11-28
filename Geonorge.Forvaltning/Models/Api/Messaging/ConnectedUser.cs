@@ -1,4 +1,4 @@
-﻿namespace Geonorge.Forvaltning.Models.Api;
+﻿namespace Geonorge.Forvaltning.Models.Api.Messaging;
 
 public class ConnectedUser
 {
