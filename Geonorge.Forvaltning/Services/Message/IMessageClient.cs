@@ -1,10 +1,12 @@
-﻿using Geonorge.Forvaltning.Models.Api;
-using Geonorge.Forvaltning.Models.Api.Messaging;
+﻿using Geonorge.Forvaltning.Models.Api.Messaging;
 
 namespace Geonorge.Forvaltning.Services.Message;
 
 public interface IMessageClient
 {
-    Task ReceiveMessage(ConnectedUser message);
-    Task ReceiveObjectUpdated(ObjectUpdated message);
+    Task ReceiveUserDisconnected(string connectionId);
+    Task ReceiveCursorMoved(ConnectedUser message);
+    Task ReceiveObjectCreated(CreatedObject message);
+    Task ReceiveObjectUpdated(UpdatedObject message);
+    Task ReceiveObjectsDeleted(List<int> objectIds);
 }
