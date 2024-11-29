@@ -28,9 +28,9 @@ public class MessageHub : Hub<IMessageClient>
         await Clients.AllExcept([user]).ReceiveObjectUpdated(message);
     }
 
-    public async Task SendObjectsDeleted(string user, UpdatedObject message)
+    public async Task SendObjectsDeleted(string user, DeletedObjects message)
     {
-        await Clients.AllExcept([user]).ReceiveObjectUpdated(message);
+        await Clients.AllExcept([user]).ReceiveObjectsDeleted(message);
     }
 
     public override async Task OnConnectedAsync()

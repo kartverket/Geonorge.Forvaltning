@@ -8,5 +8,5 @@ public interface IMessageClient
     Task ReceiveCursorMoved(ConnectedUser message);
     Task ReceiveObjectCreated(CreatedObject message);
     Task ReceiveObjectUpdated(UpdatedObject message);
-    Task ReceiveObjectsDeleted(List<int> objectIds);
+    Task ReceiveObjectsDeleted(DeletedObjects message);
 }
