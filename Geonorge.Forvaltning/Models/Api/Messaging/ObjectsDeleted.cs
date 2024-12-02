@@ -1,6 +1,6 @@
 ﻿namespace Geonorge.Forvaltning.Models.Api.Messaging;
 
-public class DeletedObjects : Message
+public class ObjectsDeleted : Message
 {
     public List<int> Ids { get; set; }
 }

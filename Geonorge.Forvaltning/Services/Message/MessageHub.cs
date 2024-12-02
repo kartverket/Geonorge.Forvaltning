@@ -8,49 +8,101 @@ namespace Geonorge.Forvaltning.Services.Message;
 public class MessageHub : Hub<IMessageClient>
 {
     private static readonly ConcurrentDictionary<string, string> _connectedUsers = [];
+    private static readonly ConcurrentDictionary<string, ObjectEdited> _editedObjects = [];
     private static readonly ConcurrentStack<string> _colors = GenerateColors();
 
-    public async Task SendCursorMoved(string user, ConnectedUser message)
+    public async Task SendPointerMoved(string user, PointerMoved message)
     {
-        _connectedUsers.TryGetValue(user, out var color);
-        message.Color = color;
+        AddUserColor(user, message);
 
-        await Clients.AllExcept([user]).ReceiveCursorMoved(message);
+        await Clients.AllExcept([user]).ReceivePointerMoved(message);
     }
 
-    public async Task SendObjectCreated(string user, CreatedObject message)
+    public async Task SendObjectEdited(string user, ObjectEdited message)
+    {
+        AddUserColor(user, message);
+        AddEditedObject(user, message);
+
+        await SendObjectsEdited();
+    }
+
+    public async Task SendObjectCreated(string user, ObjectCreated message)
     {
         await Clients.AllExcept([user]).ReceiveObjectCreated(message);
     }
 
-    public async Task SendObjectUpdated(string user, UpdatedObject message)
+    public async Task SendObjectUpdated(string user, ObjectUpdated message)
     {
         await Clients.AllExcept([user]).ReceiveObjectUpdated(message);
     }
 
-    public async Task SendObjectsDeleted(string user, DeletedObjects message)
+    public async Task SendObjectsDeleted(string user, ObjectsDeleted message)
     {
         await Clients.AllExcept([user]).ReceiveObjectsDeleted(message);
     }
 
     public override async Task OnConnectedAsync()
     {
-        _colors.TryPop(out var color);
-        _connectedUsers.TryAdd(Context.ConnectionId, color);
+        await base.OnConnectedAsync();
 
-        await base.OnConnectedAsync();        
+        AddConnectedUser();
+
+        var objectsEdited = _editedObjects
+            .Select(user => user.Value)
+            .ToList();
+
+        await Clients.Client(Context.ConnectionId).ReceiveObjectsEdited(objectsEdited);
     }
 
     public override async Task OnDisconnectedAsync(Exception exception)
-    {        
+    {
         await base.OnDisconnectedAsync(exception);
 
-        var connectionId = Context.ConnectionId;
+        RemoveEditedObject(Context.ConnectionId);
+        RemoveConnectedUser();
 
-        _connectedUsers.TryRemove(connectionId, out var color);
+        await Clients.All.ReceiveUserDisconnected(Context.ConnectionId);
+        await SendObjectsEdited();
+    }
+
+    private async Task SendObjectsEdited()
+    {
+        var objectsEdited = _editedObjects
+            .Select(user => user.Value)
+            .ToList();
+
+        await Clients.All.ReceiveObjectsEdited(objectsEdited);
+    }
+
+    private void AddConnectedUser()
+    {
+        _colors.TryPop(out var color);
+        _connectedUsers.TryAdd(Context.ConnectionId, color);
+    }
+
+    private void RemoveConnectedUser()
+    {
+        _connectedUsers.TryRemove(Context.ConnectionId, out var color);
         _colors.Push(color);
+    }
 
-        await Clients.All.ReceiveUserDisconnected(connectionId);
+    private static void AddUserColor(string user, UserMessage message)
+    {
+        _connectedUsers.TryGetValue(user, out var color);
+        message.Color = color;
+    }
+
+    private static void AddEditedObject(string user, ObjectEdited message)
+    {
+        if (!_editedObjects.ContainsKey(user) && message.ObjectId.HasValue)
+            _editedObjects.TryAdd(user, message);
+        else if (!message.ObjectId.HasValue)
+            _editedObjects.TryRemove(user, out _);
+    }
+
+    private static void RemoveEditedObject(string user)
+    {
+        _editedObjects.TryRemove(user, out _);
     }
 
     private static ConcurrentStack<string> GenerateColors()
@@ -59,8 +111,6 @@ public class MessageHub : Hub<IMessageClient>
             .Generate("#86bff2", 20)
             .Darker(0.2)
             .Get();
-
-        new Random().Shuffle(colors);
 
         return new ConcurrentStack<string>(colors);
     }

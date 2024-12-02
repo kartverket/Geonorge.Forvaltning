@@ -2,7 +2,7 @@
 
 namespace Geonorge.Forvaltning.Models.Api.Messaging;
 
-public class UpdatedObject : Message
+public class ObjectCreated : Message
 {
-    public JsonObject Properties { get; set; }
+    public JsonObject Object { get; set; }
 }
