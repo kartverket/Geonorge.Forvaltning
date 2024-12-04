@@ -2,6 +2,7 @@ using Geonorge.Forvaltning;
 using Geonorge.Forvaltning.HttpClients;
 using Geonorge.Forvaltning.Models.Entity;
 using Geonorge.Forvaltning.Services;
+using Geonorge.Forvaltning.Services.Message;
 using LoggingWithSerilog.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -135,16 +136,22 @@ services.AddHttpClient<IRouteSearchHttpClient, RouteSearchHttpClient>((servicePr
     httpClient.DefaultRequestHeaders.Add("Authorization", options.Value.ApiKey);
 });
 
-services.AddCors();
+services.AddSignalR();
+
+services.AddCors(options =>
+{
+    options.AddPolicy("Development", builder =>
+    {
+        builder
+            .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            .WithHeaders("*")
+            .AllowCredentials()
+            .SetIsOriginAllowed(origin => origin != null && 
+                origin.StartsWith("https://localhost", StringComparison.CurrentCultureIgnoreCase));
+    });
+});
 
 var app = builder.Build();
-
-app.UseCors(options =>
-{
-    options.AllowAnyOrigin();
-    options.AllowAnyMethod();
-    options.AllowAnyHeader();
-});
 
 app.UseSwagger(options =>
 {
@@ -162,11 +169,15 @@ app.UseResponseCaching();
 
 app.UseMiddleware(typeof(ExceptionHandlingMiddleware));
 
+app.UseCors("Development");
+
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<MessageHub>("/hubs/message");
 
 app.Run();
 
