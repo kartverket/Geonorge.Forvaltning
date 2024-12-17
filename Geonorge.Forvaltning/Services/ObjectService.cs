@@ -1,3 +1,4 @@
+using GeoJSON.Text.Feature;
 using Geonorge.Forvaltning.Models;
 using Geonorge.Forvaltning.Models.Api;
 using Geonorge.Forvaltning.Models.Api.User;
@@ -9,6 +10,8 @@ using MimeKit;
 using Npgsql;
 using System.Data;
 using System.Security.Cryptography;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using System.Text.Json;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -784,6 +787,41 @@ namespace Geonorge.Forvaltning.Services
             }
             return null;
         }
+
+        public async Task<object> GetObjects()
+        {
+            //todo datasetId as input filter columns and rows
+            var datasetId = 96;
+   
+            var sql = @$"
+            SELECT row_to_json(row) FROM (
+                SELECT * FROM public.t_{datasetId}
+            ) AS row;
+        
+            ";
+
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            List<JsonDocument> objects = new List<JsonDocument>();
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (reader.HasRows)
+            {
+                while (await reader.ReadAsync()) {
+                    var row = await reader.GetFieldValueAsync<JsonDocument>(0);
+                    objects.Add(row);
+                }
+            }
+
+            _connection.Close();
+
+            return objects;
+        }
     }
 
     public interface IObjectService
@@ -793,6 +831,7 @@ namespace Geonorge.Forvaltning.Services
         Task DeleteObjectAsync(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
         Task<object> EditTag(int datasetId, int id, string tag);
+        Task <object>GetObjects();
         Task RequestAuthorizationAsync();
     }
 }
