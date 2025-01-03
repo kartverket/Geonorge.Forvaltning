@@ -818,7 +818,7 @@ namespace Geonorge.Forvaltning.Services
 
             var sql = @$"
             SELECT row_to_json(row) FROM (
-                SELECT id,{string.Join(",",columns)} FROM public.t_{datasetId}
+                SELECT id,{string.Join(",",columns)}, geometry FROM public.t_{datasetId}
                 WHERE owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}']
             ) AS row;
             ";
