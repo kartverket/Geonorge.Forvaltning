@@ -15,12 +15,12 @@ namespace Geonorge.Forvaltning.Controllers
             _objectService = objectService;
             _logger = logger;
         }
-        [HttpGet("objects", Name = "Objects")]
-        public async Task<IActionResult> Objects()
+        [HttpGet("objects/{datasetId:int}", Name = "Objects")]
+        public async Task<IActionResult> Objects(int datasetId)
         {
             //try
             //{
-                var result = await _objectService.GetObjects();
+                var result = await _objectService.GetObjects(datasetId);
 
                 return Ok(result);
             //}

@@ -796,16 +796,31 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
-        public async Task<object> GetObjects()
+        public async Task<object> GetObjects(int datasetId)
         {
-            //todo datasetId as input filter columns and rows
-            var datasetId = 96;
-   
+            var user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            var properties = _context.ForvaltningsObjektPropertiesMetadata
+                .Where(metadata => metadata.ForvaltningsObjektMetadataId == datasetId)
+                .OrderBy(o => o.ColumnName).ToList();
+
+            
+            foreach (var property in properties)
+            {
+                if(!hasAccess(user, property))
+                    properties.Remove(property);
+            }
+
+            var columns = properties.Select(p => p.ColumnName).ToList();
+
             var sql = @$"
             SELECT row_to_json(row) FROM (
-                SELECT * FROM public.t_{datasetId}
+                SELECT id,{string.Join(",",columns)} FROM public.t_{datasetId}
+                WHERE owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}']
             ) AS row;
-        
             ";
 
             _connection.Open();
@@ -830,6 +845,18 @@ namespace Geonorge.Forvaltning.Services
 
             return objects;
         }
+
+        private bool hasAccess(User user, ForvaltningsObjektPropertiesMetadata property)
+        {
+            if(!property.Hidden)
+                return true;
+            else if (property.OrganizationNumber == user.OrganizationNumber)
+                return true;
+            else if(property.Contributors != null && property.Contributors.Contains(user.OrganizationNumber))
+                return true;
+
+            return false;
+        }
     }
 
     public interface IObjectService
@@ -839,7 +866,7 @@ namespace Geonorge.Forvaltning.Services
         Task DeleteObjectAsync(int id);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
         Task<object> EditTag(int datasetId, int id, string tag);
-        Task <object>GetObjects();
+        Task <object>GetObjects(int datasetId);
         Task RequestAuthorizationAsync();
     }
 }
