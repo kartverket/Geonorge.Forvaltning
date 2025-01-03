@@ -12,6 +12,7 @@ using System.Data;
 using System.Security.Cryptography;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -803,6 +804,8 @@ namespace Geonorge.Forvaltning.Services
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
+            List<ForvaltningsObjektPropertiesMetadata> forvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
+
             var properties = _context.ForvaltningsObjektPropertiesMetadata
                 .Where(metadata => metadata.ForvaltningsObjektMetadataId == datasetId)
                 .OrderBy(o => o.ColumnName).ToList();
@@ -810,11 +813,11 @@ namespace Geonorge.Forvaltning.Services
             
             foreach (var property in properties)
             {
-                if(!hasAccess(user, property))
-                    properties.Remove(property);
+                if(hasAccess(user, property))
+                    forvaltningsObjektPropertiesMetadata.Add(property);
             }
 
-            var columns = properties.Select(p => p.ColumnName).ToList();
+            var columns = forvaltningsObjektPropertiesMetadata.Select(p => p.ColumnName).ToList();
 
             var sql = @$"
             SELECT row_to_json(row) FROM (
@@ -836,8 +839,23 @@ namespace Geonorge.Forvaltning.Services
             if (reader.HasRows)
             {
                 while (await reader.ReadAsync()) {
+
                     var row = await reader.GetFieldValueAsync<JsonDocument>(0);
-                    objects.Add(row);
+
+                    Dictionary<string, object> objekt = JsonSerializer.Deserialize<Dictionary<string, object>>(row);
+
+                    foreach (var property in properties)
+                    {
+                        if(property.Hidden && (property.OrganizationNumber != user.OrganizationNumber || !property.Contributors.Contains(user.OrganizationNumber))) //todo fix bug
+                        {
+                           objekt[property.ColumnName] = null;
+                        }
+
+                    }
+
+                    var newDoc = JsonDocument.Parse(JsonSerializer.Serialize(objekt));
+
+                    objects.Add(newDoc);
                 }
             }
 
