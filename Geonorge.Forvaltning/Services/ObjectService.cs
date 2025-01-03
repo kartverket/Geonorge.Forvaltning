@@ -104,7 +104,7 @@ namespace Geonorge.Forvaltning.Services
                     {
                         item.AllowedValues = null;
                     }
-                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber, AllowedValues = item.AllowedValues });
+                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber, AllowedValues = item.AllowedValues, Hidden = item.Hidden });
                     col++;
                 }
                 _context.ForvaltningsObjektMetadata.Add(metadata);
@@ -293,6 +293,7 @@ namespace Geonorge.Forvaltning.Services
                             OrganizationNumber = user.OrganizationNumber,
                             DataType = item.DataType,
                             ColumnName = columnName,
+                            Hidden = item.Hidden,
                             AllowedValues = item.AllowedValues
                         });
 
@@ -327,6 +328,13 @@ namespace Geonorge.Forvaltning.Services
                         if (item.Name != property.Name)
                         {
                             property.Name = item.Name;
+                            _context.SaveChanges();
+                        }
+
+                        //Property Hidden has changed?
+                        if (item.Hidden != property.Hidden)
+                        {
+                            property.Hidden = item.Hidden;
                             _context.SaveChanges();
                         }
 

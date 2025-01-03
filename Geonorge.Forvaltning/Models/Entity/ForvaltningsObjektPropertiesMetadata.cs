@@ -15,6 +15,7 @@ namespace Geonorge.Forvaltning.Models.Entity
         [StringLength(31)]
         [Required]
         public string ColumnName { get; set; }
+        public bool Hidden { get; set; } = false;
         [StringLength(255)]
         [Required]
         public string OrganizationNumber { get; set; }
