@@ -13,6 +13,7 @@ using System.Security.Cryptography;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections.ObjectModel;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -807,7 +808,7 @@ namespace Geonorge.Forvaltning.Services
             List<ForvaltningsObjektPropertiesMetadata> forvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
 
             var properties = _context.ForvaltningsObjektPropertiesMetadata
-                .Where(metadata => metadata.ForvaltningsObjektMetadataId == datasetId)
+                .Where(metadata => metadata.ForvaltningsObjektMetadataId == datasetId && (metadata.OrganizationNumber == user.OrganizationNumber || metadata.Contributors.Contains(user.OrganizationNumber) || metadata.Viewers.Contains(user.OrganizationNumber)))
                 .OrderBy(o => o.ColumnName).ToList();
 
             
@@ -821,8 +822,8 @@ namespace Geonorge.Forvaltning.Services
 
             var sql = @$"
             SELECT row_to_json(row) FROM (
-                SELECT id,{string.Join(",",columns)}, geometry FROM public.t_{datasetId}
-                WHERE owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}']
+                SELECT id,{string.Join(",",columns)}, geometry, contributor_org, viewer_org FROM public.t_{datasetId}
+                WHERE id IN(2046,225) AND (owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}'] )
             ) AS row;
             ";
 
@@ -846,9 +847,22 @@ namespace Geonorge.Forvaltning.Services
 
                     foreach (var property in properties)
                     {
-                        if(property.Hidden && (property.OrganizationNumber != user.OrganizationNumber || !property.Contributors.Contains(user.OrganizationNumber))) //todo fix bug
+                        if (property.Hidden) 
                         {
-                           objekt[property.ColumnName] = null;
+                            var contributors = objekt["contributor_org"];
+                            var contributorsList = contributors == null ? null : JsonSerializer.Deserialize<List<string>>(contributors.ToString());
+                            if (property.OrganizationNumber == user.OrganizationNumber)
+                            {
+                                continue; //owner
+                            }
+                            else if (contributorsList != null && contributorsList.Contains(user.OrganizationNumber))
+                            {
+                                continue; //contributor
+                            }
+                            else 
+                            {
+                                objekt[property.ColumnName] = null; //hide for viewers
+                            }
                         }
 
                     }
