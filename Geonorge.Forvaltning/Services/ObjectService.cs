@@ -867,6 +867,9 @@ namespace Geonorge.Forvaltning.Services
 
                     }
 
+                    objekt.Remove("contributor_org");
+                    objekt.Remove("viewer_org");
+
                     var newDoc = JsonDocument.Parse(JsonSerializer.Serialize(objekt));
 
                     objects.Add(newDoc);
