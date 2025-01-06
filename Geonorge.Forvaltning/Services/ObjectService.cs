@@ -823,7 +823,7 @@ namespace Geonorge.Forvaltning.Services
             var sql = @$"
             SELECT row_to_json(row) FROM (
                 SELECT id,{string.Join(",",columns)}, geometry, contributor_org, viewer_org FROM public.t_{datasetId}
-                WHERE id IN(2046,225) AND (owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}'] )
+                WHERE (owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}'] )
             ) AS row;
             ";
 
@@ -853,15 +853,15 @@ namespace Geonorge.Forvaltning.Services
                             var contributorsList = contributors == null ? null : JsonSerializer.Deserialize<List<string>>(contributors.ToString());
                             if (property.OrganizationNumber == user.OrganizationNumber)
                             {
-                                continue; //owner
+                                continue; //ok for owner
                             }
                             else if (contributorsList != null && contributorsList.Contains(user.OrganizationNumber))
                             {
-                                continue; //contributor
+                                continue; //ok for contributor
                             }
                             else 
                             {
-                                objekt[property.ColumnName] = null; //hide for viewers
+                                objekt[property.ColumnName] = null; //hide for viewer
                             }
                         }
 
