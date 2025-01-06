@@ -18,9 +18,29 @@ namespace Geonorge.Forvaltning.Controllers
         [HttpGet("objects/{datasetId:int}", Name = "Objects")]
         public async Task<IActionResult> Objects(int datasetId)
         {
+            try
+            {
+                var result = await _objectService.GetObjects(datasetId);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
+            }
+        }
+
+        [HttpPut("objects/{datasetId:int}", Name = "PutObjectData")]
+        public async Task<IActionResult> PutObjectData(int datasetId, [FromBody]object objekt)
+        {
             //try
             //{
-                var result = await _objectService.GetObjects(datasetId);
+                var result = await _objectService.PutObjectData(datasetId, objekt);
 
                 return Ok(result);
             //}
@@ -34,5 +54,6 @@ namespace Geonorge.Forvaltning.Controllers
             //    throw;
             //}
         }
+
     }
 }

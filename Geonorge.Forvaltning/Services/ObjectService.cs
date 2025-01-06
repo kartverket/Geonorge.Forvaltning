@@ -14,6 +14,7 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Collections.ObjectModel;
+using System.Reflection;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -892,7 +893,63 @@ namespace Geonorge.Forvaltning.Services
 
             return false;
         }
+
+        async Task<object>  IObjectService.PutObjectData(int id, object objekt)
+        {
+            //User user = await _authService.GetUserFromSupabaseAsync();
+
+            //if (user == null)
+            //    throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id ).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+            //todo more check access
+            if (objektMeta == null)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
+            }
+
+            var sql = "UPDATE " + objektMeta.TableName + " SET ";
+
+            var newDoc = JsonDocument.Parse(JsonSerializer.Serialize(objekt));
+            Dictionary<string, object> objektUpdate = JsonSerializer.Deserialize<Dictionary<string, object>>(newDoc);
+
+            foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            {
+                var value = objektUpdate[prop.ColumnName];
+                sql = sql + prop.ColumnName + " = @" + value + ",";
+            }
+
+            var geometry = objektUpdate["geometry"];
+            var contributor_org = objektUpdate["contributor_org"];
+            var idRef = objektUpdate["id"];
+            sql = sql + " geometry = @" + geometry + ", contributor_org = @"+ contributor_org;
+
+            sql = sql + " WHERE id = @" + idRef;
+
+            _connection.Open();
+            using var cmd = new NpgsqlCommand();
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            //await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            throw new NotImplementedException();
+        }
+
+        public static object GetObjectValue(object obj)
+        {
+            var typeOfObject = ((System.Text.Json.JsonElement)obj).ValueKind;
+
+            switch (typeOfObject)
+            {
+                case JsonValueKind.Number:
+                    return long.Parse(obj.ToString());
+                default:
+                    return obj.ToString();
+            }
+        }
     }
+
 
     public interface IObjectService
     {
@@ -902,6 +959,7 @@ namespace Geonorge.Forvaltning.Services
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
         Task<object> EditTag(int datasetId, int id, string tag);
         Task <object>GetObjects(int datasetId);
+        Task<object> PutObjectData(int id, object objekt);
         Task RequestAuthorizationAsync();
     }
 }
