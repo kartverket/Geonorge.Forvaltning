@@ -924,26 +924,29 @@ namespace Geonorge.Forvaltning.Services
             }
 
             var idObjekt = GetObjectValue(objektUpdate["id"]);
+            var owner_org = objektMeta.Organization;
             var contributor_org = GetObjectValue(objektUpdate["contributor_org"]); //not needed to set, by system?
+            var viewer_org = objektUpdate["viewer_org"]; //not needed to set, by system?
             var editor = GetObjectValue(objektUpdate["editor"]); //get from user
             var geometry = GetObjectValue(objektUpdate["geometry"]);
-            var owner_org = GetObjectValue(objektUpdate["owner_org"]); //not needed to set, by system?
             var updatedate = DateTime.Now;
-            var viewer_org = GetObjectValue(objektUpdate["viewer_org"]); //not needed to set, by system?
+
 
             //sql = sql + " contributor_org = '{" + string.Join(",", contributor_org) + "}'::text[], ";
             sql = sql + " editor = @editor ,";
-            //sql = sql + " geometry = @geometry ,";
+            sql = sql + " geometry = @geometry ,";
             sql = sql + " owner_org = @owner_org, ";
             sql = sql + " updatedate = @updatedate ";
             //sql = sql + " viewer_org = '{" + string.Join(",", viewer_org) + "}'::text[] ";
+            //sql = sql + " viewer_org = @viewer_org ";
             sql = sql + " WHERE id = @id";
 
             cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric , idObjekt);
             cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
-            //cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Geometry, geometry);
+            cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
             cmd.Parameters.AddWithValue("@owner_org", NpgsqlTypes.NpgsqlDbType.Text, owner_org);
             cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
+            //cmd.Parameters.AddWithValue("@viewer_org", viewer_org);
 
             _connection.Open();
             
