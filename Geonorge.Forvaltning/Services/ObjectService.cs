@@ -928,14 +928,14 @@ namespace Geonorge.Forvaltning.Services
             var editor = GetObjectValue(objektUpdate["editor"]); //get from user
             var geometry = GetObjectValue(objektUpdate["geometry"]);
             var owner_org = GetObjectValue(objektUpdate["owner_org"]); //not needed to set, by system?
-            var updatedate = GetObjectValue(objektUpdate["updatedate"]); //get from system
+            var updatedate = DateTime.Now;
             var viewer_org = GetObjectValue(objektUpdate["viewer_org"]); //not needed to set, by system?
 
             //sql = sql + " contributor_org = '{" + string.Join(",", contributor_org) + "}'::text[], ";
             sql = sql + " editor = @editor ,";
             //sql = sql + " geometry = @geometry ,";
-            sql = sql + " owner_org = @owner_org ";
-            //sql = sql + " updatedate = @updatedate ";
+            sql = sql + " owner_org = @owner_org, ";
+            sql = sql + " updatedate = @updatedate ";
             //sql = sql + " viewer_org = '{" + string.Join(",", viewer_org) + "}'::text[] ";
             sql = sql + " WHERE id = @id";
 
@@ -943,7 +943,7 @@ namespace Geonorge.Forvaltning.Services
             cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
             //cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Geometry, geometry);
             cmd.Parameters.AddWithValue("@owner_org", NpgsqlTypes.NpgsqlDbType.Text, owner_org);
-            //cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Date, updatedate);
+            cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
 
             _connection.Open();
             
@@ -962,7 +962,7 @@ namespace Geonorge.Forvaltning.Services
             else if (dataType.Contains("numeric"))
                 return NpgsqlTypes.NpgsqlDbType.Numeric;
             else if (dataType.Contains("timestamp"))
-                return NpgsqlTypes.NpgsqlDbType.Date;
+                return NpgsqlTypes.NpgsqlDbType.Timestamp;
 
             return NpgsqlTypes.NpgsqlDbType.Text;
         }
