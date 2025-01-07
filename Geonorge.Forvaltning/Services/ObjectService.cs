@@ -910,43 +910,48 @@ namespace Geonorge.Forvaltning.Services
 
             var sql = "UPDATE " + objektMeta.TableName + " SET ";
 
-            var newDoc = JsonDocument.Parse(JsonSerializer.Serialize(objekt));
-            Dictionary<string, object> objektUpdate = JsonSerializer.Deserialize<Dictionary<string, object>>(newDoc);
+            Dictionary<string, object> objektUpdate = JsonSerializer.Deserialize<Dictionary<string, object>>
+                (JsonDocument.Parse(JsonSerializer.Serialize(objekt)));
+
+            using var cmd = new NpgsqlCommand();
 
             foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
             {
-                var value = objektUpdate[prop.ColumnName];
-                sql = sql + prop.ColumnName + " = @" + value + ",";
+                var value = ((object)objektUpdate[prop.ColumnName]) ?? DBNull.Value;
+                sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
+                cmd.Parameters.AddWithValue("@"+ prop.ColumnName, value);
             }
 
+            var idObjekt = objektUpdate["id"];
+            var contributor_org = objektUpdate["contributor_org"]; //not needed to set, by system?
+            var editor = objektUpdate["editor"]; //get from user
             var geometry = objektUpdate["geometry"];
-            var contributor_org = objektUpdate["contributor_org"];
-            var idRef = objektUpdate["id"];
-            sql = sql + " geometry = @" + geometry + ", contributor_org = @"+ contributor_org;
+            var owner_org = objektUpdate["contributor_org"]; //not needed to set, by system?
+            var updatedate = objektUpdate["updatedate"]; //get from system
+            var viewer_org = objektUpdate["viewer_org"]; //not needed to set, by system?
 
-            sql = sql + " WHERE id = @" + idRef;
+            sql = sql + " contributor_org = '{" + string.Join(",", contributor_org) + "}'::text[], ";
+            sql = sql + " editor = @editor ,";
+            sql = sql + " geometry = @geometry ,";
+            sql = sql + " owner_org = @owner_org ,";
+            sql = sql + " updatedate = @updatedate ,";
+            sql = sql + " viewer_org = '{" + string.Join(",", viewer_org) + "}'::text[] ";
+            sql = sql + " WHERE id = @id";
+
+            cmd.Parameters.AddWithValue("@id", idObjekt);
+            cmd.Parameters.AddWithValue("@editor", editor);
+            cmd.Parameters.AddWithValue("@geometry", geometry);
+            cmd.Parameters.AddWithValue("@owner_org", owner_org);
+            cmd.Parameters.AddWithValue("@updatedate", updatedate);
 
             _connection.Open();
-            using var cmd = new NpgsqlCommand();
+            
             cmd.Connection = _connection;
             cmd.CommandText = sql;
-            //await cmd.ExecuteNonQueryAsync();
+            await cmd.ExecuteNonQueryAsync();
             _connection.Close();
 
-            throw new NotImplementedException();
-        }
-
-        public static object GetObjectValue(object obj)
-        {
-            var typeOfObject = ((System.Text.Json.JsonElement)obj).ValueKind;
-
-            switch (typeOfObject)
-            {
-                case JsonValueKind.Number:
-                    return long.Parse(obj.ToString());
-                default:
-                    return obj.ToString();
-            }
+            return null;
         }
     }
 
