@@ -15,6 +15,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Collections.ObjectModel;
 using System.Reflection;
+using System.Globalization;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -917,32 +918,32 @@ namespace Geonorge.Forvaltning.Services
 
             foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
             {
-                var value = ((object)objektUpdate[prop.ColumnName]) ?? DBNull.Value;
+                var value = GetObjectValue(objektUpdate[prop.ColumnName]);
                 sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
-                cmd.Parameters.AddWithValue("@"+ prop.ColumnName, value);
+                cmd.Parameters.AddWithValue("@"+ prop.ColumnName, GetSqlDataType(prop.DataType), value);
             }
 
-            var idObjekt = objektUpdate["id"];
-            var contributor_org = objektUpdate["contributor_org"]; //not needed to set, by system?
-            var editor = objektUpdate["editor"]; //get from user
-            var geometry = objektUpdate["geometry"];
-            var owner_org = objektUpdate["contributor_org"]; //not needed to set, by system?
-            var updatedate = objektUpdate["updatedate"]; //get from system
-            var viewer_org = objektUpdate["viewer_org"]; //not needed to set, by system?
+            var idObjekt = GetObjectValue(objektUpdate["id"]);
+            var contributor_org = GetObjectValue(objektUpdate["contributor_org"]); //not needed to set, by system?
+            var editor = GetObjectValue(objektUpdate["editor"]); //get from user
+            var geometry = GetObjectValue(objektUpdate["geometry"]);
+            var owner_org = GetObjectValue(objektUpdate["owner_org"]); //not needed to set, by system?
+            var updatedate = GetObjectValue(objektUpdate["updatedate"]); //get from system
+            var viewer_org = GetObjectValue(objektUpdate["viewer_org"]); //not needed to set, by system?
 
-            sql = sql + " contributor_org = '{" + string.Join(",", contributor_org) + "}'::text[], ";
+            //sql = sql + " contributor_org = '{" + string.Join(",", contributor_org) + "}'::text[], ";
             sql = sql + " editor = @editor ,";
-            sql = sql + " geometry = @geometry ,";
-            sql = sql + " owner_org = @owner_org ,";
-            sql = sql + " updatedate = @updatedate ,";
-            sql = sql + " viewer_org = '{" + string.Join(",", viewer_org) + "}'::text[] ";
+            //sql = sql + " geometry = @geometry ,";
+            sql = sql + " owner_org = @owner_org ";
+            //sql = sql + " updatedate = @updatedate ";
+            //sql = sql + " viewer_org = '{" + string.Join(",", viewer_org) + "}'::text[] ";
             sql = sql + " WHERE id = @id";
 
-            cmd.Parameters.AddWithValue("@id", idObjekt);
-            cmd.Parameters.AddWithValue("@editor", editor);
-            cmd.Parameters.AddWithValue("@geometry", geometry);
-            cmd.Parameters.AddWithValue("@owner_org", owner_org);
-            cmd.Parameters.AddWithValue("@updatedate", updatedate);
+            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric , idObjekt);
+            cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
+            //cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Geometry, geometry);
+            cmd.Parameters.AddWithValue("@owner_org", NpgsqlTypes.NpgsqlDbType.Text, owner_org);
+            //cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Date, updatedate);
 
             _connection.Open();
             
@@ -952,6 +953,67 @@ namespace Geonorge.Forvaltning.Services
             _connection.Close();
 
             return null;
+        }
+
+        public static NpgsqlTypes.NpgsqlDbType GetSqlDataType(string dataType)
+        {
+            if (dataType.Contains("bool"))
+                return NpgsqlTypes.NpgsqlDbType.Boolean;
+            else if (dataType.Contains("numeric"))
+                return NpgsqlTypes.NpgsqlDbType.Numeric;
+            else if (dataType.Contains("timestamp"))
+                return NpgsqlTypes.NpgsqlDbType.Date;
+
+            return NpgsqlTypes.NpgsqlDbType.Text;
+        }
+
+        /// <summary>
+        /// Converts a JsonElement object to an appropriate .NET object type.
+        /// </summary>
+        /// <param name="obj">The object to convert, typically a JsonElement.</param>
+        /// <returns>
+        /// The converted object as a .NET type. If the conversion fails, returns the exception message.
+        /// Possible return types are string, float, bool, or null.
+        /// </returns>
+        /// <remarks>
+        /// This method attempts to determine the type of the JSON element and convert it to a corresponding .NET type.
+        /// It handles various JSON value kinds such as Number, String, True, False, Null, Undefined, Object, and Array.
+        /// If the conversion fails, it catches the exception and returns the exception message.
+        /// </remarks>
+        public static object? GetObjectValue(object? obj)
+        {
+            try
+            {
+                switch (obj)
+                {
+                    case null:
+                        return DBNull.Value;
+                    case JsonElement jsonElement:
+                        {
+                            var typeOfObject = jsonElement.ValueKind;
+                            var rawText = jsonElement.GetRawText(); // Retrieves the raw JSON text for the element.
+
+                            return typeOfObject switch
+                            {
+                                JsonValueKind.Number => float.Parse(rawText, CultureInfo.InvariantCulture),
+                                JsonValueKind.String => obj.ToString(), // Directly gets the string.
+                                JsonValueKind.True => true,
+                                JsonValueKind.False => false,
+                                JsonValueKind.Null => null,
+                                JsonValueKind.Undefined => null, // Undefined treated as null.
+                                JsonValueKind.Object => rawText, // Returns raw JSON for objects.
+                                JsonValueKind.Array => rawText, // Returns raw JSON for arrays.
+                                _ => rawText // Fallback to raw text for any other kind.
+                            };
+                        }
+                    default:
+                        throw new ArgumentException("Expected a JsonElement object", nameof(obj));
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
         }
     }
 
