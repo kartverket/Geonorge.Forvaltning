@@ -926,19 +926,25 @@ namespace Geonorge.Forvaltning.Services
             var idObjekt = GetObjectValue(objektUpdate["id"]);
             var owner_org = objektMeta.Organization;
             var contributor_org = GetObjectValue(objektUpdate["contributor_org"]); //not needed to set, by system?
+            List<string> contributors = new List<string>();
+            // todo get from db 
+            var contributorsArray = contributors.ToArray();
             var viewer_org = objektUpdate["viewer_org"]; //not needed to set, by system?
+            List<string> viewers = new List<string>();
+            viewers.Add("914994780"); // todo get from db 
+            var viewersArray = viewers.ToArray();
+
             var editor = GetObjectValue(objektUpdate["editor"]); //get from user
             var geometry = GetObjectValue(objektUpdate["geometry"]);
             var updatedate = DateTime.Now;
 
 
-            //sql = sql + " contributor_org = '{" + string.Join(",", contributor_org) + "}'::text[], ";
+            sql = sql + " contributor_org = @contributor_org, ";
             sql = sql + " editor = @editor ,";
             sql = sql + " geometry = @geometry ,";
             sql = sql + " owner_org = @owner_org, ";
-            sql = sql + " updatedate = @updatedate ";
-            //sql = sql + " viewer_org = '{" + string.Join(",", viewer_org) + "}'::text[] ";
-            //sql = sql + " viewer_org = @viewer_org ";
+            sql = sql + " updatedate = @updatedate, ";
+            sql = sql + " viewer_org = @viewer_org ";
             sql = sql + " WHERE id = @id";
 
             cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric , idObjekt);
@@ -946,7 +952,8 @@ namespace Geonorge.Forvaltning.Services
             cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
             cmd.Parameters.AddWithValue("@owner_org", NpgsqlTypes.NpgsqlDbType.Text, owner_org);
             cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
-            //cmd.Parameters.AddWithValue("@viewer_org", viewer_org);
+            cmd.Parameters.AddWithValue("@viewer_org", viewersArray);
+            cmd.Parameters.AddWithValue("@contributor_org", contributorsArray);
 
             _connection.Open();
             
