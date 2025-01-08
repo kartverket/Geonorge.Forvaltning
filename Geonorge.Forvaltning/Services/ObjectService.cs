@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Globalization;
+using Newtonsoft.Json.Linq;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -897,22 +898,71 @@ namespace Geonorge.Forvaltning.Services
 
         async Task<object>  IObjectService.PutObjectData(int id, object objekt)
         {
-            //User user = await _authService.GetUserFromSupabaseAsync();
+            User user = await _authService.GetUserFromSupabaseAsync();
 
-            //if (user == null)
-            //    throw new UnauthorizedAccessException("Manglende eller feil autorisering");
-
-            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id ).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
-            //todo more check access
-            if (objektMeta == null)
-            {
-                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt");
-            }
-
-            var sql = "UPDATE " + objektMeta.TableName + " SET ";
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
             Dictionary<string, object> objektUpdate = JsonSerializer.Deserialize<Dictionary<string, object>>
                 (JsonDocument.Parse(JsonSerializer.Serialize(objekt)));
+
+            var idObjekt = GetObjectValue(objektUpdate["id"]);
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id ).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+            
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            string[] contributorOrganizationsArray = [];
+            string[] viewersOrganizationsArray = [];
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
+            bool isContributorObject = false;
+
+            var sql = @$"SELECT array_to_string(contributor_org, ',') as contributor_org, array_to_string(viewer_org, ',') as viewer_org  FROM t_{id} WHERE id=@id";
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Parameters.AddWithValue("@id", idObjekt);
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (reader.HasRows)
+            {
+                await reader.ReadAsync();
+                var contributorOrgs = reader.GetValue(0);
+                var viewerOrgs = reader.GetValue(1);
+
+                if (contributorOrgs != null && !string.IsNullOrEmpty(contributorOrgs.ToString()))
+                {
+                    var contributorOrganizations = contributorOrgs.ToString().Split(",");
+                    isContributorObject = contributorOrganizations.Contains(user.OrganizationNumber);
+                    contributorOrganizationsArray = contributorOrganizations;
+                }
+
+                if (viewerOrgs != null && !string.IsNullOrEmpty(viewerOrgs.ToString()))
+                {
+                    var viewersOrganizations = viewerOrgs.ToString().Split(",");
+                    viewersOrganizationsArray = viewersOrganizations;
+                }
+            }
+            reader.Close();
+            _connection.Close();
+
+
+            if (!isAdmin && !isContributorDataset && !isContributorObject)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+
+            sql = "UPDATE " + objektMeta.TableName + " SET ";
 
             using var cmd = new NpgsqlCommand();
 
@@ -923,21 +973,13 @@ namespace Geonorge.Forvaltning.Services
                 cmd.Parameters.AddWithValue("@"+ prop.ColumnName, GetSqlDataType(prop.DataType), value);
             }
 
-            var idObjekt = GetObjectValue(objektUpdate["id"]);
             var owner_org = objektMeta.Organization;
-            var contributor_org = GetObjectValue(objektUpdate["contributor_org"]); //not needed to set, by system?
-            List<string> contributors = new List<string>();
-            // todo get from db 
-            var contributorsArray = contributors.ToArray();
-            var viewer_org = objektUpdate["viewer_org"]; //not needed to set, by system?
-            List<string> viewers = new List<string>();
-            viewers.Add("914994780"); // todo get from db 
-            var viewersArray = viewers.ToArray();
+            var contributorsArray = contributorOrganizationsArray;
+            var viewersArray = viewersOrganizationsArray;
 
-            var editor = GetObjectValue(objektUpdate["editor"]); //get from user
+            var editor = user.Email;
             var geometry = GetObjectValue(objektUpdate["geometry"]);
             var updatedate = DateTime.Now;
-
 
             sql = sql + " contributor_org = @contributor_org, ";
             sql = sql + " editor = @editor ,";
