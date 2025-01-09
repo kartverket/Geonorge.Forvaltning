@@ -38,21 +38,21 @@ namespace Geonorge.Forvaltning.Controllers
         [HttpPost("objects/{datasetId:int}", Name = "PostObjectData")]
         public async Task<IActionResult> PostObjectData(int datasetId, [FromBody] object objekt)
         {
-            //try
-            //{
+            try
+            {
                 var result = await _objectService.PostObjectData(datasetId, objekt);
 
                 return Ok(result);
-            //}
-            //catch (Exception ex)
-            //{
-            //    var result = HandleException(ex);
+            }
+            catch (Exception ex)
+            {
+                var result = HandleException(ex);
 
-            //    if (result != null)
-            //        return result;
+                if (result != null)
+                    return result;
 
-            //    throw;
-            //}
+                throw;
+            }
         }
 
         [HttpPut("objects/{datasetId:int}", Name = "PutObjectData")]
