@@ -903,7 +903,7 @@ namespace Geonorge.Forvaltning.Services
             if (user == null)
                 throw new UnauthorizedAccessException("Manglende eller feil autorisering");
 
-            Dictionary<string, object> objektUpdate = JsonSerializer.Deserialize<Dictionary<string, object>>
+            Dictionary<string, object> objektInsert = JsonSerializer.Deserialize<Dictionary<string, object>>
                 (JsonDocument.Parse(JsonSerializer.Serialize(objekt)));
 
             var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
@@ -913,13 +913,34 @@ namespace Geonorge.Forvaltning.Services
                 throw new Exception("Datasett ble ikke funnet");
             }
 
-            string[] contributorOrganizationsArray = [];
-            string[] viewersOrganizationsArray = [];
+            string[] contributorOrganizationsArray = objektMeta.Contributors != null ? objektMeta.Contributors.ToArray() : [];
+            string[] viewersOrganizationsArray = objektMeta.Viewers != null ? objektMeta.Viewers.ToArray() : [];
 
             //check access
             bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
             bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
-            bool isContributorObject = false; //todo + check attribute value ex. Esso
+            bool isContributorObject = false;
+
+            foreach(var access in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            { 
+                var accessByProperties = _context.AccessByProperties.Where(a => a.ForvaltningsObjektPropertiesMetadata.Id == access.Id).ToList();
+                if (accessByProperties == null)
+                    continue;
+
+                var valueData = GetObjectValue(objektInsert[access.ColumnName]);
+
+                if(valueData != null)
+                {
+                    string data = valueData.ToString();
+
+                    if (accessByProperties.Any(a => a.Value == data && a.Contributors.Contains(user.OrganizationNumber)))
+                    {
+                        contributorOrganizationsArray = accessByProperties.Where(a => a.Value == data).SelectMany(a => a.Contributors).ToArray();
+                        isContributorObject = true;
+                        break;
+                    }
+                }
+            }
 
 
             if (!isAdmin && !isContributorDataset && !isContributorObject)
@@ -936,7 +957,7 @@ namespace Geonorge.Forvaltning.Services
 
             foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
             {
-                var value = GetObjectValue(objektUpdate[prop.ColumnName]);
+                var value = GetObjectValue(objektInsert[prop.ColumnName]);
                 sql = sql + "@" + prop.ColumnName + ",";
                 cmd.Parameters.AddWithValue("@" + prop.ColumnName, GetSqlDataType(prop.DataType), value);
             }
@@ -946,7 +967,7 @@ namespace Geonorge.Forvaltning.Services
             var viewersArray = viewersOrganizationsArray;
 
             var editor = user.Email;
-            var geometry = GetObjectValue(objektUpdate["geometry"]);
+            var geometry = GetObjectValue(objektInsert["geometry"]);
             var updatedate = DateTime.Now;
 
             sql = sql + " @contributor_org, ";
