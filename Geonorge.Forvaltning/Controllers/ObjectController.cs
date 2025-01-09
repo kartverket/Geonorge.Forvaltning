@@ -35,6 +35,26 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
+        [HttpPost("objects/{datasetId:int}", Name = "PostObjectData")]
+        public async Task<IActionResult> PostObjectData(int datasetId, [FromBody] object objekt)
+        {
+            //try
+            //{
+                var result = await _objectService.PostObjectData(datasetId, objekt);
+
+                return Ok(result);
+            //}
+            //catch (Exception ex)
+            //{
+            //    var result = HandleException(ex);
+
+            //    if (result != null)
+            //        return result;
+
+            //    throw;
+            //}
+        }
+
         [HttpPut("objects/{datasetId:int}", Name = "PutObjectData")]
         public async Task<IActionResult> PutObjectData(int datasetId, [FromBody]object objekt)
         {

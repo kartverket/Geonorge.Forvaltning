@@ -896,6 +896,84 @@ namespace Geonorge.Forvaltning.Services
             return false;
         }
 
+        async Task<object> IObjectService.PostObjectData(int datasetId, object objekt)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            Dictionary<string, object> objektUpdate = JsonSerializer.Deserialize<Dictionary<string, object>>
+                (JsonDocument.Parse(JsonSerializer.Serialize(objekt)));
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            string[] contributorOrganizationsArray = [];
+            string[] viewersOrganizationsArray = [];
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
+            bool isContributorObject = false; //todo + check attribute value ex. Esso
+
+
+            if (!isAdmin && !isContributorDataset && !isContributorObject)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            var columns = objektMeta.ForvaltningsObjektPropertiesMetadata.Select(p => p.ColumnName).ToList();
+
+            var sql = "INSERT INTO " + objektMeta.TableName + " " +
+                "( "+ string.Join(",",columns) +" ,contributor_org, editor, geometry, owner_org, updatedate, viewer_org) VALUES (";
+
+            using var cmd = new NpgsqlCommand();
+
+            foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            {
+                var value = GetObjectValue(objektUpdate[prop.ColumnName]);
+                sql = sql + "@" + prop.ColumnName + ",";
+                cmd.Parameters.AddWithValue("@" + prop.ColumnName, GetSqlDataType(prop.DataType), value);
+            }
+
+            var owner_org = objektMeta.Organization;
+            var contributorsArray = contributorOrganizationsArray;
+            var viewersArray = viewersOrganizationsArray;
+
+            var editor = user.Email;
+            var geometry = GetObjectValue(objektUpdate["geometry"]);
+            var updatedate = DateTime.Now;
+
+            sql = sql + " @contributor_org, ";
+            sql = sql + " @editor ,";
+            sql = sql + " @geometry ,";
+            sql = sql + " @owner_org, ";
+            sql = sql + " @updatedate, ";
+            sql = sql + " @viewer_org ";
+            sql = sql + " )";
+
+            cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
+            cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
+            cmd.Parameters.AddWithValue("@owner_org", NpgsqlTypes.NpgsqlDbType.Text, owner_org);
+            cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
+            cmd.Parameters.AddWithValue("@viewer_org", viewersArray);
+            cmd.Parameters.AddWithValue("@contributor_org", contributorsArray);
+
+            _connection.Open();
+
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            return null;
+        }
+
         async Task<object>  IObjectService.PutObjectData(int id, object objekt)
         {
             User user = await _authService.GetUserFromSupabaseAsync();
@@ -1143,6 +1221,7 @@ namespace Geonorge.Forvaltning.Services
         Task<object> EditTag(int datasetId, int id, string tag);
         Task <object>GetObjects(int datasetId);
         Task<object> PutObjectData(int id, object objekt);
+        Task<object> PostObjectData(int id, object objekt);
         Task RequestAuthorizationAsync();
     }
 }
