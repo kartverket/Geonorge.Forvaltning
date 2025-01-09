@@ -38,21 +38,41 @@ namespace Geonorge.Forvaltning.Controllers
         [HttpPut("objects/{datasetId:int}", Name = "PutObjectData")]
         public async Task<IActionResult> PutObjectData(int datasetId, [FromBody]object objekt)
         {
-            //try
-            //{
+            try
+            {
                 var result = await _objectService.PutObjectData(datasetId, objekt);
 
                 return Ok(result);
-            //}
-            //catch (Exception ex)
-            //{
-            //    var result = HandleException(ex);
+            }
+            catch (Exception ex)
+            {
+                var result = HandleException(ex);
 
-            //    if (result != null)
-            //        return result;
+                if (result != null)
+                    return result;
 
-            //    throw;
-            //}
+                throw;
+            }
+        }
+
+        [HttpDelete("objects/{datasetId:int}/{objektId:int}", Name = "DeleteObjectData")]
+        public async Task<IActionResult> DeleteObjectData(int datasetId, int objektId)
+        {
+            try
+            {
+                var result = await _objectService.DeleteObjectData(datasetId, objektId);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
+            }
         }
 
     }

@@ -1067,6 +1067,69 @@ namespace Geonorge.Forvaltning.Services
                 return $"Error: {ex.Message}";
             }
         }
+
+        public async Task<object> DeleteObjectData(int datasetId, int objektId)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
+            bool isContributorObject = false;
+
+            var sql = @$"SELECT array_to_string(contributor_org, ',') as contributor_org  FROM t_{datasetId} WHERE id=@id";
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Parameters.AddWithValue("@id", objektId);
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (reader.HasRows)
+            {
+                await reader.ReadAsync();
+                var contributorOrgs = reader.GetValue(0);
+
+                if (contributorOrgs != null && !string.IsNullOrEmpty(contributorOrgs.ToString()))
+                {
+                    var contributorOrganizations = contributorOrgs.ToString().Split(",");
+                    isContributorObject = contributorOrganizations.Contains(user.OrganizationNumber);
+                }        
+            }
+            reader.Close();
+            _connection.Close();
+
+
+            if (!isAdmin && !isContributorDataset && !isContributorObject)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            sql = "DELETE FROM " + objektMeta.TableName + " WHERE id=@id ";
+            using var cmd = new NpgsqlCommand();
+            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric, objektId);
+           
+            _connection.Open();
+
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            return null;
+        }
     }
 
 
@@ -1075,6 +1138,7 @@ namespace Geonorge.Forvaltning.Services
         Task<object?> Access(ObjectAccess access);
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task DeleteObjectAsync(int id);
+        Task<object> DeleteObjectData(int datasetId, int objektId);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
         Task<object> EditTag(int datasetId, int id, string tag);
         Task <object>GetObjects(int datasetId);
