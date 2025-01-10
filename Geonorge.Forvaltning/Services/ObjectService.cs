@@ -120,7 +120,7 @@ namespace Geonorge.Forvaltning.Services
 
                 string sqlConstraints = "";
 
-                string sql = "CREATE TABLE " + metadata.TableName + " (id SERIAL PRIMARY KEY,"; //Todo use uuid data type?
+                string sql = "CREATE TABLE " + metadata.TableName + " (id SERIAL PRIMARY KEY,";
                 foreach (var property in metadata.ForvaltningsObjektPropertiesMetadata)
                 {
                     if (property.DataType.Contains("bool"))
@@ -156,6 +156,7 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + sqlConstraints;
 
                 sql = sql + "alter table " + metadata.TableName + " enable row level security;";
+                //todo: remove since policy not used
                 sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
                 sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\"))))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\")))))));";
                 sql = sql + "CREATE POLICY \"Viewer\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".viewer_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Viewers\")))))));";
@@ -933,15 +934,14 @@ namespace Geonorge.Forvaltning.Services
                 {
                     string data = valueData.ToString();
 
-                    if (accessByProperties.Any(a => a.Value == data && a.Contributors.Contains(user.OrganizationNumber)))
+                    if (accessByProperties.Any(a => a.Value == data))
                     {
                         contributorOrganizationsArray = accessByProperties.Where(a => a.Value == data).SelectMany(a => a.Contributors).ToArray();
-                        isContributorObject = true;
-                        break;
+                        if (accessByProperties.Any(a => a.Contributors.Contains(user.OrganizationNumber)))
+                            isContributorObject = true;
                     }
                 }
             }
-
 
             if (!isAdmin && !isContributorDataset && !isContributorObject)
             {
@@ -959,7 +959,11 @@ namespace Geonorge.Forvaltning.Services
             {
                 var value = GetObjectValue(objektInsert[prop.ColumnName]);
                 sql = sql + "@" + prop.ColumnName + ",";
-                cmd.Parameters.AddWithValue("@" + prop.ColumnName, GetSqlDataType(prop.DataType), value);
+                var datatype = GetSqlDataType(prop.DataType);
+                if(datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
+                    value = Convert.ToDouble(value);
+
+                cmd.Parameters.AddWithValue("@" + prop.ColumnName, datatype, value);
             }
 
             var owner_org = objektMeta.Organization;
@@ -1014,19 +1018,100 @@ namespace Geonorge.Forvaltning.Services
                 throw new Exception("Datasett ble ikke funnet");
             }
 
-            string[] contributorOrganizationsArray = [];
-            string[] viewersOrganizationsArray = [];
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
+            bool isContributorObject = false;
+
+            foreach (var access in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            {
+                var accessByProperties = _context.AccessByProperties.Where(a => a.ForvaltningsObjektPropertiesMetadata.Id == access.Id).ToList();
+                if (accessByProperties == null)
+                    continue;
+
+                var valueData = GetObjectValue(objektUpdate[access.ColumnName]);
+
+                if (valueData != null)
+                {
+                    string data = valueData.ToString();
+
+                    if (accessByProperties.Any(a => a.Value == data && a.Contributors.Contains(user.OrganizationNumber)))
+                    {
+                        isContributorObject = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isAdmin && !isContributorDataset && !isContributorObject)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            var sql = "UPDATE " + objektMeta.TableName + " SET ";
+
+            using var cmd = new NpgsqlCommand();
+
+            foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            {
+                var value = GetObjectValue(objektUpdate[prop.ColumnName]);
+                sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
+
+                var datatype = GetSqlDataType(prop.DataType);
+                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
+                    value = Convert.ToDouble(value);
+
+                cmd.Parameters.AddWithValue("@"+ prop.ColumnName, datatype, value);
+            }
+
+            var editor = user.Email;
+            var geometry = GetObjectValue(objektUpdate["geometry"]);
+            var updatedate = DateTime.Now;
+
+            sql = sql + " editor = @editor ,";
+            sql = sql + " geometry = @geometry ,";
+            sql = sql + " updatedate = @updatedate ";
+            sql = sql + " WHERE id = @id";
+
+            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric , idObjekt);
+            cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
+            cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
+            cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
+
+            _connection.Open();
+            
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            return null;
+        }
+
+        public async Task<object> DeleteObjectData(int datasetId, int objektId)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
 
             //check access
             bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
             bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
             bool isContributorObject = false;
 
-            var sql = @$"SELECT array_to_string(contributor_org, ',') as contributor_org, array_to_string(viewer_org, ',') as viewer_org  FROM t_{id} WHERE id=@id";
+            var sql = @$"SELECT array_to_string(contributor_org, ',') as contributor_org  FROM t_{datasetId} WHERE id=@id";
             _connection.Open();
 
             await using var command = new NpgsqlCommand();
-            command.Parameters.AddWithValue("@id", idObjekt);
+            command.Parameters.AddWithValue("@id", objektId);
             command.Connection = _connection;
             command.CommandText = sql;
 
@@ -1036,19 +1121,11 @@ namespace Geonorge.Forvaltning.Services
             {
                 await reader.ReadAsync();
                 var contributorOrgs = reader.GetValue(0);
-                var viewerOrgs = reader.GetValue(1);
 
                 if (contributorOrgs != null && !string.IsNullOrEmpty(contributorOrgs.ToString()))
                 {
                     var contributorOrganizations = contributorOrgs.ToString().Split(",");
                     isContributorObject = contributorOrganizations.Contains(user.OrganizationNumber);
-                    contributorOrganizationsArray = contributorOrganizations;
-                }
-
-                if (viewerOrgs != null && !string.IsNullOrEmpty(viewerOrgs.ToString()))
-                {
-                    var viewersOrganizations = viewerOrgs.ToString().Split(",");
-                    viewersOrganizationsArray = viewersOrganizations;
                 }
             }
             reader.Close();
@@ -1060,44 +1137,12 @@ namespace Geonorge.Forvaltning.Services
                 throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
             }
 
-
-            sql = "UPDATE " + objektMeta.TableName + " SET ";
-
+            sql = "DELETE FROM " + objektMeta.TableName + " WHERE id=@id ";
             using var cmd = new NpgsqlCommand();
-
-            foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
-            {
-                var value = GetObjectValue(objektUpdate[prop.ColumnName]);
-                sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
-                cmd.Parameters.AddWithValue("@"+ prop.ColumnName, GetSqlDataType(prop.DataType), value);
-            }
-
-            var owner_org = objektMeta.Organization;
-            var contributorsArray = contributorOrganizationsArray;
-            var viewersArray = viewersOrganizationsArray;
-
-            var editor = user.Email;
-            var geometry = GetObjectValue(objektUpdate["geometry"]);
-            var updatedate = DateTime.Now;
-
-            sql = sql + " contributor_org = @contributor_org, ";
-            sql = sql + " editor = @editor ,";
-            sql = sql + " geometry = @geometry ,";
-            sql = sql + " owner_org = @owner_org, ";
-            sql = sql + " updatedate = @updatedate, ";
-            sql = sql + " viewer_org = @viewer_org ";
-            sql = sql + " WHERE id = @id";
-
-            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric , idObjekt);
-            cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
-            cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
-            cmd.Parameters.AddWithValue("@owner_org", NpgsqlTypes.NpgsqlDbType.Text, owner_org);
-            cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
-            cmd.Parameters.AddWithValue("@viewer_org", viewersArray);
-            cmd.Parameters.AddWithValue("@contributor_org", contributorsArray);
+            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric, objektId);
 
             _connection.Open();
-            
+
             cmd.Connection = _connection;
             cmd.CommandText = sql;
             await cmd.ExecuteNonQueryAsync();
@@ -1165,69 +1210,6 @@ namespace Geonorge.Forvaltning.Services
             {
                 return $"Error: {ex.Message}";
             }
-        }
-
-        public async Task<object> DeleteObjectData(int datasetId, int objektId)
-        {
-            User user = await _authService.GetUserFromSupabaseAsync();
-
-            if (user == null)
-                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
-
-            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
-
-            if (objektMeta == null)
-            {
-                throw new Exception("Datasett ble ikke funnet");
-            }
-
-            //check access
-            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
-            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
-            bool isContributorObject = false;
-
-            var sql = @$"SELECT array_to_string(contributor_org, ',') as contributor_org  FROM t_{datasetId} WHERE id=@id";
-            _connection.Open();
-
-            await using var command = new NpgsqlCommand();
-            command.Parameters.AddWithValue("@id", objektId);
-            command.Connection = _connection;
-            command.CommandText = sql;
-
-            await using var reader = await command.ExecuteReaderAsync();
-
-            if (reader.HasRows)
-            {
-                await reader.ReadAsync();
-                var contributorOrgs = reader.GetValue(0);
-
-                if (contributorOrgs != null && !string.IsNullOrEmpty(contributorOrgs.ToString()))
-                {
-                    var contributorOrganizations = contributorOrgs.ToString().Split(",");
-                    isContributorObject = contributorOrganizations.Contains(user.OrganizationNumber);
-                }        
-            }
-            reader.Close();
-            _connection.Close();
-
-
-            if (!isAdmin && !isContributorDataset && !isContributorObject)
-            {
-                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
-            }
-
-            sql = "DELETE FROM " + objektMeta.TableName + " WHERE id=@id ";
-            using var cmd = new NpgsqlCommand();
-            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric, objektId);
-           
-            _connection.Open();
-
-            cmd.Connection = _connection;
-            cmd.CommandText = sql;
-            await cmd.ExecuteNonQueryAsync();
-            _connection.Close();
-
-            return null;
         }
     }
 

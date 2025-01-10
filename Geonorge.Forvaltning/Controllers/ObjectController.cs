@@ -15,7 +15,7 @@ namespace Geonorge.Forvaltning.Controllers
             _objectService = objectService;
             _logger = logger;
         }
-        [HttpGet("objects/{datasetId:int}", Name = "Objects")]
+        [HttpGet("{datasetId:int}", Name = "Objects")]
         public async Task<IActionResult> Objects(int datasetId)
         {
             try
@@ -35,14 +35,14 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
-        [HttpPost("objects/{datasetId:int}", Name = "PostObjectData")]
+        [HttpPost("{datasetId:int}", Name = "PostObjectData")]
         public async Task<IActionResult> PostObjectData(int datasetId, [FromBody] object objekt)
         {
             try
             {
                 var result = await _objectService.PostObjectData(datasetId, objekt);
 
-                return Ok(result);
+                return Ok(result); //todo return 201 created and object
             }
             catch (Exception ex)
             {
@@ -55,7 +55,7 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
-        [HttpPut("objects/{datasetId:int}", Name = "PutObjectData")]
+        [HttpPut("{datasetId:int}", Name = "PutObjectData")]
         public async Task<IActionResult> PutObjectData(int datasetId, [FromBody]object objekt)
         {
             try
@@ -75,7 +75,7 @@ namespace Geonorge.Forvaltning.Controllers
             }
         }
 
-        [HttpDelete("objects/{datasetId:int}/{objektId:int}", Name = "DeleteObjectData")]
+        [HttpDelete("{datasetId:int}/{objektId:int}", Name = "DeleteObjectData")]
         public async Task<IActionResult> DeleteObjectData(int datasetId, int objektId)
         {
             try
