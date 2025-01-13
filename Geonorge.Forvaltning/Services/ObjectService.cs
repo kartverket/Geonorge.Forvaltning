@@ -968,8 +968,13 @@ namespace Geonorge.Forvaltning.Services
                 var value = GetObjectValue(objektInsert[prop.ColumnName]);
                 sql = sql + "@" + prop.ColumnName + ",";
                 var datatype = GetSqlDataType(prop.DataType);
-                if(datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
-                    value = Convert.ToDouble(value);
+                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
+                {
+                    if (value.ToString() != "")
+                        value = Convert.ToDouble(value);
+                    else
+                        value = DBNull.Value;
+                }
 
                 cmd.Parameters.AddWithValue("@" + prop.ColumnName, datatype, value);
             }
@@ -1001,7 +1006,15 @@ namespace Geonorge.Forvaltning.Services
 
             cmd.Connection = _connection;
             cmd.CommandText = sql;
-            var id = cmd.ExecuteScalar();
+            object id = null;
+            try
+            {
+                id = cmd.ExecuteScalar();
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Feil ved lagring av data");
+            }
             _connection.Close();
 
             //return added row
