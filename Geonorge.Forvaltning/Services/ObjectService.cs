@@ -981,7 +981,7 @@ namespace Geonorge.Forvaltning.Services
             sql = sql + " @owner_org, ";
             sql = sql + " @updatedate, ";
             sql = sql + " @viewer_org ";
-            sql = sql + " )";
+            sql = sql + " ) RETURNING id";
 
             cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
             cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
@@ -994,10 +994,42 @@ namespace Geonorge.Forvaltning.Services
 
             cmd.Connection = _connection;
             cmd.CommandText = sql;
-            await cmd.ExecuteNonQueryAsync();
+            var id = cmd.ExecuteScalar();
             _connection.Close();
 
-            return null;
+            //return added row
+            sql = @$"
+            SELECT row_to_json(row) FROM (
+                SELECT id,{string.Join(",", columns)}, geometry, contributor_org, viewer_org FROM public.t_{datasetId}
+                WHERE id={id}
+            ) AS row;
+            ";
+
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            JsonDocument addedObject = null;
+
+            if (reader.HasRows)
+            {
+                await reader.ReadAsync();
+
+                var row = await reader.GetFieldValueAsync<JsonDocument>(0);
+
+                objekt = JsonSerializer.Deserialize<Dictionary<string, object>>(row);
+
+                addedObject = JsonDocument.Parse(JsonSerializer.Serialize(objekt));
+            }
+
+            _connection.Close();
+
+
+            return addedObject;
         }
 
         async Task<object>  IObjectService.PutObjectData(int id, object objekt)
