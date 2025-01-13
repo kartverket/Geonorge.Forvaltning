@@ -538,8 +538,15 @@ namespace Geonorge.Forvaltning.Services
 
                 foreach (var prop in objekt.ForvaltningsObjektPropertiesMetadata)
                 {
-                    prop.Viewers = access.Viewers;
-                    _context.SaveChanges();
+                    if (prop.Hidden) {
+                        prop.Viewers = null;
+                        _context.SaveChanges();
+                    }
+                    else
+                    {
+                        prop.Viewers = access.Viewers;
+                        _context.SaveChanges();
+                    }
                 }
 
                 var hasPropertyAccess = false;
