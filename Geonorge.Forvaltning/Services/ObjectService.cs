@@ -1191,6 +1191,40 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
+        public async Task<object> DeleteAllObjectData(int datasetId)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+
+            if (!isAdmin)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            var sql = "DELETE FROM " + objektMeta.TableName;
+            using var cmd = new NpgsqlCommand();
+            _connection.Open();
+
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            return null;
+        }
+
         public static NpgsqlTypes.NpgsqlDbType GetSqlDataType(string dataType)
         {
             if (dataType.Contains("bool"))
@@ -1266,5 +1300,6 @@ namespace Geonorge.Forvaltning.Services
         Task<object> PutObjectData(int id, object objekt);
         Task<object> PostObjectData(int id, object objekt);
         Task RequestAuthorizationAsync();
+        Task<object> DeleteAllObjectData(int datasetId);
     }
 }

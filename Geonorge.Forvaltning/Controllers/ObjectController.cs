@@ -42,7 +42,7 @@ namespace Geonorge.Forvaltning.Controllers
             {
                 var result = await _objectService.PostObjectData(datasetId, objekt);
 
-                return Ok(result); //todo return 201 created and object
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -81,6 +81,26 @@ namespace Geonorge.Forvaltning.Controllers
             try
             {
                 var result = await _objectService.DeleteObjectData(datasetId, objektId);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                var result = HandleException(ex);
+
+                if (result != null)
+                    return result;
+
+                throw;
+            }
+        }
+
+        [HttpDelete("{datasetId:int}", Name = "DeleteAllObjectData")]
+        public async Task<IActionResult> DeleteAllObjectData(int datasetId)
+        {
+            try
+            {
+                var result = await _objectService.DeleteAllObjectData(datasetId);
 
                 return Ok(result);
             }
