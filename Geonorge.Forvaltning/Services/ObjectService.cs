@@ -1,3 +1,4 @@
+using GeoJSON.Text.Feature;
 using Geonorge.Forvaltning.Models;
 using Geonorge.Forvaltning.Models.Api;
 using Geonorge.Forvaltning.Models.Api.User;
@@ -9,6 +10,13 @@ using MimeKit;
 using Npgsql;
 using System.Data;
 using System.Security.Cryptography;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections.ObjectModel;
+using System.Reflection;
+using System.Globalization;
+using Newtonsoft.Json.Linq;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -112,7 +120,7 @@ namespace Geonorge.Forvaltning.Services
 
                 string sqlConstraints = "";
 
-                string sql = "CREATE TABLE " + metadata.TableName + " (id SERIAL PRIMARY KEY,"; //Todo use uuid data type?
+                string sql = "CREATE TABLE " + metadata.TableName + " (id SERIAL PRIMARY KEY,";
                 foreach (var property in metadata.ForvaltningsObjektPropertiesMetadata)
                 {
                     if (property.DataType.Contains("bool"))
@@ -148,9 +156,10 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + sqlConstraints;
 
                 sql = sql + "alter table " + metadata.TableName + " enable row level security;";
-                sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
-                sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\"))))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\")))))));";
-                sql = sql + "CREATE POLICY \"Viewer\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".viewer_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Viewers\")))))));";
+                //remove since policy not used
+                //sql = sql + "CREATE POLICY \"Owner\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text)  ))) WITH CHECK ((EXISTS ( SELECT * FROM users WHERE (users.organization = " + metadata.TableName + ".owner_org) AND (" + metadata.TableName + ".owner_org = '" + metadata.Organization + "'::text) )));";
+                //sql = sql + "CREATE POLICY \"Contributor\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\"))))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".contributor_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Contributors\")))))));";
+                //sql = sql + "CREATE POLICY \"Viewer\" ON \"public\".\"" + metadata.TableName + "\" AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users, \"ForvaltningsObjektMetadata\"  WHERE ((users.organization = ANY (" + metadata.TableName + ".viewer_org)) AND ((\"ForvaltningsObjektMetadata\".\"Id\" = " + metadata.Id + ") AND (users.organization = ANY (\"ForvaltningsObjektMetadata\".\"Viewers\")))))));";
                 
                 _connection.Open();
                 using var cmd = new NpgsqlCommand();
@@ -529,8 +538,15 @@ namespace Geonorge.Forvaltning.Services
 
                 foreach (var prop in objekt.ForvaltningsObjektPropertiesMetadata)
                 {
-                    prop.Viewers = access.Viewers;
-                    _context.SaveChanges();
+                    if (prop.Hidden) {
+                        prop.Viewers = null;
+                        _context.SaveChanges();
+                    }
+                    else
+                    {
+                        prop.Viewers = access.Viewers;
+                        _context.SaveChanges();
+                    }
                 }
 
                 var hasPropertyAccess = false;
@@ -650,7 +666,6 @@ namespace Geonorge.Forvaltning.Services
                             property.AccessByProperties.Add(accessProperty);
                             _context.SaveChanges();
 
-                            //CREATE POLICY
                             var policyValue = "'" + prop.Value + "'";
                             object sqlValue = prop.Value;
                             if (property.DataType.Contains("bool"))
@@ -669,14 +684,16 @@ namespace Geonorge.Forvaltning.Services
                                 sqlValue = Convert.ToDateTime(prop.Value);
                             }
 
-                            sql = "CREATE POLICY \"Property" + accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
+                            //CREATE POLICY
+                            //Remove not in use
+                            //sql = "CREATE POLICY \"Property" + accessProperty.Id + "\" ON \"public\".\"" + objekt.TableName + "\" AS PERMISSIVE FOR ALL TO public USING ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}'))))) WITH CHECK ((EXISTS ( SELECT users.id, users.created_at, users.email, users.organization, users.editor, users.role FROM users WHERE ((users.organization = ANY (" + objekt.TableName + ".contributor_org)) AND (" + objekt.TableName + "." + property.ColumnName + " = " + policyValue + ") AND (" + objekt.TableName + ".contributor_org = '{" + string.Join(",", prop.Contributors) + "}')))));";
 
-                            _connection.Open();
-                            using var cmd3 = new NpgsqlCommand();
-                            cmd3.Connection = _connection;
-                            cmd3.CommandText = sql;
-                            await cmd3.ExecuteNonQueryAsync();
-                            _connection.Close();
+                            //_connection.Open();
+                            //using var cmd3 = new NpgsqlCommand();
+                            //cmd3.Connection = _connection;
+                            //cmd3.CommandText = sql;
+                            //await cmd3.ExecuteNonQueryAsync();
+                            //_connection.Close();
 
                             //Update table with contributor_org
                             sql = "UPDATE " + objekt.TableName + " SET contributor_org = '{" + string.Join(",", accessProperty.Contributors) + "}' Where " + property.ColumnName + "=@value;";
@@ -792,15 +809,510 @@ namespace Geonorge.Forvaltning.Services
             }
             return null;
         }
+
+        public async Task<object> GetObjects(int datasetId)
+        {
+            var user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            List<ForvaltningsObjektPropertiesMetadata> forvaltningsObjektPropertiesMetadata = new List<ForvaltningsObjektPropertiesMetadata>();
+
+            var properties = _context.ForvaltningsObjektPropertiesMetadata
+                .Where(metadata => metadata.ForvaltningsObjektMetadataId == datasetId && (metadata.OrganizationNumber == user.OrganizationNumber || metadata.Contributors.Contains(user.OrganizationNumber) || metadata.Viewers.Contains(user.OrganizationNumber)))
+                .OrderBy(o => o.ColumnName).ToList();
+
+            
+            foreach (var property in properties)
+            {
+                if(hasAccess(user, property))
+                    forvaltningsObjektPropertiesMetadata.Add(property);
+            }
+
+            var columns = forvaltningsObjektPropertiesMetadata.Select(p => p.ColumnName).ToList();
+
+            var sql = @$"
+            SELECT row_to_json(row) FROM (
+                SELECT id,{string.Join(",",columns)}, geometry, contributor_org, viewer_org FROM public.t_{datasetId}
+                WHERE (owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}'] )
+            ) AS row;
+            ";
+
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            List<JsonDocument> objects = new List<JsonDocument>();
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (reader.HasRows)
+            {
+                while (await reader.ReadAsync()) {
+
+                    var row = await reader.GetFieldValueAsync<JsonDocument>(0);
+
+                    Dictionary<string, object> objekt = JsonSerializer.Deserialize<Dictionary<string, object>>(row);
+
+                    foreach (var property in properties)
+                    {
+                        if (property.Hidden) 
+                        {
+                            var contributors = objekt["contributor_org"];
+                            var contributorsList = contributors == null ? null : JsonSerializer.Deserialize<List<string>>(contributors.ToString());
+                            if (property.OrganizationNumber == user.OrganizationNumber)
+                            {
+                                continue; //ok for owner
+                            }
+                            else if (contributorsList != null && contributorsList.Contains(user.OrganizationNumber))
+                            {
+                                continue; //ok for contributor
+                            }
+                            else 
+                            {
+                                objekt[property.ColumnName] = null; //hide for viewer
+                            }
+                        }
+
+                    }
+
+                    objekt.Remove("contributor_org");
+                    objekt.Remove("viewer_org");
+
+                    var newDoc = JsonDocument.Parse(JsonSerializer.Serialize(objekt));
+
+                    objects.Add(newDoc);
+                }
+            }
+
+            _connection.Close();
+
+            return objects;
+        }
+
+        private bool hasAccess(User user, ForvaltningsObjektPropertiesMetadata property)
+        {
+            if(!property.Hidden)
+                return true;
+            else if (property.OrganizationNumber == user.OrganizationNumber)
+                return true;
+            else if(property.Contributors != null && property.Contributors.Contains(user.OrganizationNumber))
+                return true;
+
+            return false;
+        }
+
+        async Task<object> IObjectService.PostObjectData(int datasetId, object objekt)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            Dictionary<string, object> objektInsert = JsonSerializer.Deserialize<Dictionary<string, object>>
+                (JsonDocument.Parse(JsonSerializer.Serialize(objekt)));
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            string[] contributorOrganizationsArray = objektMeta.Contributors != null ? objektMeta.Contributors.ToArray() : [];
+            string[] viewersOrganizationsArray = objektMeta.Viewers != null ? objektMeta.Viewers.ToArray() : [];
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
+            bool isContributorObject = false;
+
+            foreach(var access in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            { 
+                var accessByProperties = _context.AccessByProperties.Where(a => a.ForvaltningsObjektPropertiesMetadata.Id == access.Id).ToList();
+                if (accessByProperties == null)
+                    continue;
+
+                var valueData = GetObjectValue(objektInsert[access.ColumnName]);
+
+                if(valueData != null)
+                {
+                    string data = valueData.ToString();
+
+                    if (accessByProperties.Any(a => a.Value == data))
+                    {
+                        contributorOrganizationsArray = accessByProperties.Where(a => a.Value == data).SelectMany(a => a.Contributors).ToArray();
+                        if (accessByProperties.Any(a => a.Contributors.Contains(user.OrganizationNumber)))
+                            isContributorObject = true;
+                    }
+                }
+            }
+
+            if (!isAdmin && !isContributorDataset && !isContributorObject)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            var columns = objektMeta.ForvaltningsObjektPropertiesMetadata.Select(p => p.ColumnName).ToList();
+
+            var sql = "INSERT INTO " + objektMeta.TableName + " " +
+                "( "+ string.Join(",",columns) +" ,contributor_org, editor, geometry, owner_org, updatedate, viewer_org) VALUES (";
+
+            using var cmd = new NpgsqlCommand();
+
+            foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            {
+                var value = GetObjectValue(objektInsert[prop.ColumnName]);
+                sql = sql + "@" + prop.ColumnName + ",";
+                var datatype = GetSqlDataType(prop.DataType);
+                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
+                {
+                    if (value.ToString() != "")
+                        value = Convert.ToDouble(value);
+                    else
+                        value = DBNull.Value;
+                }
+
+                cmd.Parameters.AddWithValue("@" + prop.ColumnName, datatype, value);
+            }
+
+            var owner_org = objektMeta.Organization;
+            var contributorsArray = contributorOrganizationsArray;
+            var viewersArray = viewersOrganizationsArray;
+
+            var editor = user.Email;
+            var geometry = GetObjectValue(objektInsert["geometry"]);
+            var updatedate = DateTime.Now;
+
+            sql = sql + " @contributor_org, ";
+            sql = sql + " @editor ,";
+            sql = sql + " @geometry ,";
+            sql = sql + " @owner_org, ";
+            sql = sql + " @updatedate, ";
+            sql = sql + " @viewer_org ";
+            sql = sql + " ) RETURNING id";
+
+            cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
+            cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
+            cmd.Parameters.AddWithValue("@owner_org", NpgsqlTypes.NpgsqlDbType.Text, owner_org);
+            cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
+            cmd.Parameters.AddWithValue("@viewer_org", viewersArray);
+            cmd.Parameters.AddWithValue("@contributor_org", contributorsArray);
+
+            _connection.Open();
+
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            object id = null;
+            try
+            {
+                id = cmd.ExecuteScalar();
+            }
+            catch (Exception e)
+            {
+                throw new Exception("Feil ved lagring av data");
+            }
+            _connection.Close();
+
+            //return added row
+            sql = @$"
+            SELECT row_to_json(row) FROM (
+                SELECT id,{string.Join(",", columns)}, geometry, contributor_org, viewer_org FROM public.t_{datasetId}
+                WHERE id={id}
+            ) AS row;
+            ";
+
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            JsonDocument addedObject = null;
+
+            if (reader.HasRows)
+            {
+                await reader.ReadAsync();
+
+                var row = await reader.GetFieldValueAsync<JsonDocument>(0);
+
+                objekt = JsonSerializer.Deserialize<Dictionary<string, object>>(row);
+
+                addedObject = JsonDocument.Parse(JsonSerializer.Serialize(objekt));
+            }
+
+            _connection.Close();
+
+
+            return addedObject;
+        }
+
+        async Task<object>  IObjectService.PutObjectData(int id, object objekt)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            Dictionary<string, object> objektUpdate = JsonSerializer.Deserialize<Dictionary<string, object>>
+                (JsonDocument.Parse(JsonSerializer.Serialize(objekt)));
+
+            var idObjekt = GetObjectValue(objektUpdate["id"]);
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == id ).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+            
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
+            bool isContributorObject = false;
+
+            foreach (var access in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            {
+                var accessByProperties = _context.AccessByProperties.Where(a => a.ForvaltningsObjektPropertiesMetadata.Id == access.Id).ToList();
+                if (accessByProperties == null)
+                    continue;
+
+                var valueData = GetObjectValue(objektUpdate[access.ColumnName]);
+
+                if (valueData != null)
+                {
+                    string data = valueData.ToString();
+
+                    if (accessByProperties.Any(a => a.Value == data && a.Contributors.Contains(user.OrganizationNumber)))
+                    {
+                        isContributorObject = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isAdmin && !isContributorDataset && !isContributorObject)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            var sql = "UPDATE " + objektMeta.TableName + " SET ";
+
+            using var cmd = new NpgsqlCommand();
+
+            foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            {
+                var value = GetObjectValue(objektUpdate[prop.ColumnName]);
+                sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
+
+                var datatype = GetSqlDataType(prop.DataType);
+                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
+                    value = Convert.ToDouble(value);
+
+                cmd.Parameters.AddWithValue("@"+ prop.ColumnName, datatype, value);
+            }
+
+            var editor = user.Email;
+            var geometry = GetObjectValue(objektUpdate["geometry"]);
+            var updatedate = DateTime.Now;
+
+            sql = sql + " editor = @editor ,";
+            sql = sql + " geometry = @geometry ,";
+            sql = sql + " updatedate = @updatedate ";
+            sql = sql + " WHERE id = @id";
+
+            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric , idObjekt);
+            cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
+            cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
+            cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
+
+            _connection.Open();
+            
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            return null;
+        }
+
+        public async Task<object> DeleteObjectData(int datasetId, int objektId)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+            bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
+            bool isContributorObject = false;
+
+            var sql = @$"SELECT array_to_string(contributor_org, ',') as contributor_org  FROM t_{datasetId} WHERE id=@id";
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Parameters.AddWithValue("@id", objektId);
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (reader.HasRows)
+            {
+                await reader.ReadAsync();
+                var contributorOrgs = reader.GetValue(0);
+
+                if (contributorOrgs != null && !string.IsNullOrEmpty(contributorOrgs.ToString()))
+                {
+                    var contributorOrganizations = contributorOrgs.ToString().Split(",");
+                    isContributorObject = contributorOrganizations.Contains(user.OrganizationNumber);
+                }
+            }
+            reader.Close();
+            _connection.Close();
+
+
+            if (!isAdmin && !isContributorDataset && !isContributorObject)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            sql = "DELETE FROM " + objektMeta.TableName + " WHERE id=@id ";
+            using var cmd = new NpgsqlCommand();
+            cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric, objektId);
+
+            _connection.Open();
+
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            return null;
+        }
+
+        public async Task<object> DeleteAllObjectData(int datasetId)
+        {
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+
+            if (!isAdmin)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            var sql = "DELETE FROM " + objektMeta.TableName;
+            using var cmd = new NpgsqlCommand();
+            _connection.Open();
+
+            cmd.Connection = _connection;
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync();
+            _connection.Close();
+
+            return null;
+        }
+
+        public static NpgsqlTypes.NpgsqlDbType GetSqlDataType(string dataType)
+        {
+            if (dataType.Contains("bool"))
+                return NpgsqlTypes.NpgsqlDbType.Boolean;
+            else if (dataType.Contains("numeric"))
+                return NpgsqlTypes.NpgsqlDbType.Numeric;
+            else if (dataType.Contains("timestamp"))
+                return NpgsqlTypes.NpgsqlDbType.Timestamp;
+
+            return NpgsqlTypes.NpgsqlDbType.Text;
+        }
+
+        /// <summary>
+        /// Converts a JsonElement object to an appropriate .NET object type.
+        /// </summary>
+        /// <param name="obj">The object to convert, typically a JsonElement.</param>
+        /// <returns>
+        /// The converted object as a .NET type. If the conversion fails, returns the exception message.
+        /// Possible return types are string, float, bool, or null.
+        /// </returns>
+        /// <remarks>
+        /// This method attempts to determine the type of the JSON element and convert it to a corresponding .NET type.
+        /// It handles various JSON value kinds such as Number, String, True, False, Null, Undefined, Object, and Array.
+        /// If the conversion fails, it catches the exception and returns the exception message.
+        /// </remarks>
+        public static object? GetObjectValue(object? obj)
+        {
+            try
+            {
+                switch (obj)
+                {
+                    case null:
+                        return DBNull.Value;
+                    case JsonElement jsonElement:
+                        {
+                            var typeOfObject = jsonElement.ValueKind;
+                            var rawText = jsonElement.GetRawText(); // Retrieves the raw JSON text for the element.
+
+                            return typeOfObject switch
+                            {
+                                JsonValueKind.Number => float.Parse(rawText, CultureInfo.InvariantCulture),
+                                JsonValueKind.String => obj.ToString(), // Directly gets the string.
+                                JsonValueKind.True => true,
+                                JsonValueKind.False => false,
+                                JsonValueKind.Null => null,
+                                JsonValueKind.Undefined => null, // Undefined treated as null.
+                                JsonValueKind.Object => rawText, // Returns raw JSON for objects.
+                                JsonValueKind.Array => rawText, // Returns raw JSON for arrays.
+                                _ => rawText // Fallback to raw text for any other kind.
+                            };
+                        }
+                    default:
+                        throw new ArgumentException("Expected a JsonElement object", nameof(obj));
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
     }
+
 
     public interface IObjectService
     {
         Task<object?> Access(ObjectAccess access);
         Task<DataObject> AddDefinition(ObjectDefinitionAdd o);
         Task DeleteObjectAsync(int id);
+        Task<object> DeleteObjectData(int datasetId, int objektId);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
         Task<object> EditTag(int datasetId, int id, string tag);
+        Task <object>GetObjects(int datasetId);
+        Task<object> PutObjectData(int id, object objekt);
+        Task<object> PostObjectData(int id, object objekt);
         Task RequestAuthorizationAsync();
+        Task<object> DeleteAllObjectData(int datasetId);
     }
 }
