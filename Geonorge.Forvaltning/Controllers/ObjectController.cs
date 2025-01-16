@@ -61,6 +61,7 @@ namespace Geonorge.Forvaltning.Controllers
             List<object> data = new List<object>();
             try
             {
+                //todo: improve performance?
                 foreach (var objekt in objekts)
                 {
                     data.Add(await _objectService.PostObjectData(datasetId, objekt));
