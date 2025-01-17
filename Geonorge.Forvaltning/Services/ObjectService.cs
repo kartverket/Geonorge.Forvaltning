@@ -17,6 +17,9 @@ using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Globalization;
 using Newtonsoft.Json.Linq;
+using System.Text;
+using System.Xml.Linq;
+using Microsoft.Extensions.Primitives;
 
 
 namespace Geonorge.Forvaltning.Services
@@ -1239,6 +1242,119 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
+        public async Task<int> PostObjectsData(int datasetId, List<object> objekts)
+        {
+
+            User user = await _authService.GetUserFromSupabaseAsync();
+
+            if (user == null)
+                throw new UnauthorizedAccessException("Manglende eller feil autorisering");
+
+
+            var objektMeta = _context.ForvaltningsObjektMetadata.Where(x => x.Id == datasetId).Include(i => i.ForvaltningsObjektPropertiesMetadata).FirstOrDefault();
+
+            if (objektMeta == null)
+            {
+                throw new Exception("Datasett ble ikke funnet");
+            }
+
+
+            //check access
+            bool isAdmin = objektMeta.Organization == user.OrganizationNumber;
+
+
+            if (!isAdmin)
+            {
+                throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
+            }
+
+            int rowsAffected = 0;
+
+            try 
+            { 
+
+                using var cmd = new NpgsqlCommand();
+
+                var columns = objektMeta.ForvaltningsObjektPropertiesMetadata.Select(p => p.ColumnName).ToList();
+
+                var sb = new StringBuilder("INSERT INTO " + objektMeta.TableName + " " +
+                 "( " + string.Join(",", columns) + " , editor, geometry, owner_org, updatedate) VALUES ");
+
+
+                for (var i = 0; i < objekts.Count; i++)
+                {
+                    if (i != 0) sb.Append(',');
+
+                    Dictionary<string, object> objektInsert = JsonSerializer.Deserialize<Dictionary<string, object>>
+                        (JsonDocument.Parse(JsonSerializer.Serialize(objekts[i])));
+
+                    sb.Append("(");
+
+                    for (var j = 0; j < objektMeta.ForvaltningsObjektPropertiesMetadata.Count; j++)
+                    {
+                        if (j != 0) sb.Append(',');
+
+                        var prop = objektMeta.ForvaltningsObjektPropertiesMetadata[j];
+                        var parameterName = prop.ColumnName + i;
+
+                        sb.Append("@").Append(parameterName);
+
+                        var value = GetObjectValue(objektInsert[prop.ColumnName]);
+                        var datatype = GetSqlDataType(prop.DataType);
+                        if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
+                        {
+                            if (value.ToString() != "")
+                                value = Convert.ToDouble(value);
+                            else
+                                value = DBNull.Value;
+                        }
+
+                        cmd.Parameters.AddWithValue("@" + parameterName, datatype, value);
+                    }
+
+
+                    var owner_org = objektMeta.Organization;
+
+                    var editor = user.Email;
+                    var geometry = GetObjectValue(objektInsert["geometry"]);
+                    var updatedate = DateTime.Now;
+
+
+                    sb.Append(", @editor" + i + ",").Append("@geometry" + i + ",").Append("@owner_org" + i + ",").Append("@updatedate" + i);
+
+                    cmd.Parameters.AddWithValue("@editor" + i, NpgsqlTypes.NpgsqlDbType.Text, editor);
+                    cmd.Parameters.AddWithValue("@geometry" + i, NpgsqlTypes.NpgsqlDbType.Text, geometry);
+                    cmd.Parameters.AddWithValue("@owner_org" + i, NpgsqlTypes.NpgsqlDbType.Text, owner_org);
+                    cmd.Parameters.AddWithValue("@updatedate" + i, NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
+
+
+                    sb.Append(")");
+                }
+
+
+                _connection.Open();
+
+                cmd.Connection = _connection;
+
+                cmd.CommandText = sb.ToString();
+
+                rowsAffected = await cmd.ExecuteNonQueryAsync();
+
+                _connection.Close();
+            }
+            catch (NpgsqlException ex)
+            {
+                throw new Exception("Feil ved lagring av data" + ex);
+            }
+            catch (Exception e)
+            {
+                 throw new Exception("Feil ved lagring av data" + e);
+            }
+
+            return rowsAffected;
+        }
+
+
         public static NpgsqlTypes.NpgsqlDbType GetSqlDataType(string dataType)
         {
             if (dataType.Contains("bool"))
@@ -1315,5 +1431,6 @@ namespace Geonorge.Forvaltning.Services
         Task<object> PostObjectData(int id, object objekt);
         Task RequestAuthorizationAsync();
         Task<object> DeleteAllObjectData(int datasetId);
+        Task<int> PostObjectsData(int datasetId, List<object> objekts);
     }
 }
