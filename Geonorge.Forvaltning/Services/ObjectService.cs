@@ -1086,6 +1086,10 @@ namespace Geonorge.Forvaltning.Services
                 if (accessByProperties == null)
                     continue;
 
+                var objectExists = objektUpdate.ContainsKey(access.ColumnName);
+                if (!objectExists)
+                    continue;
+
                 var valueData = GetObjectValue(objektUpdate[access.ColumnName]);
 
                 if (valueData != null)
@@ -1111,6 +1115,10 @@ namespace Geonorge.Forvaltning.Services
 
             foreach (var prop in objektMeta.ForvaltningsObjektPropertiesMetadata)
             {
+                var objectExists = objektUpdate.ContainsKey(prop.ColumnName);
+                if (!objectExists)
+                    continue;
+
                 var value = GetObjectValue(objektUpdate[prop.ColumnName]);
                 sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
 
@@ -1122,17 +1130,25 @@ namespace Geonorge.Forvaltning.Services
             }
 
             var editor = user.Email;
-            var geometry = GetObjectValue(objektUpdate["geometry"]);
+
+            string geometry = null;
+
+            var geometryExists = objektUpdate.ContainsKey("geometry");
+            if (geometryExists)
+                geometry = GetObjectValue(objektUpdate["geometry"]).ToString();
+
             var updatedate = DateTime.Now;
 
             sql = sql + " editor = @editor ,";
-            sql = sql + " geometry = @geometry ,";
+            if(geometryExists)
+                sql = sql + " geometry = @geometry ,";
             sql = sql + " updatedate = @updatedate ";
             sql = sql + " WHERE id = @id";
 
             cmd.Parameters.AddWithValue("@id", NpgsqlTypes.NpgsqlDbType.Numeric , idObjekt);
             cmd.Parameters.AddWithValue("@editor", NpgsqlTypes.NpgsqlDbType.Text, editor);
-            cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
+            if (geometryExists)
+                cmd.Parameters.AddWithValue("@geometry", NpgsqlTypes.NpgsqlDbType.Text, geometry);
             cmd.Parameters.AddWithValue("@updatedate", NpgsqlTypes.NpgsqlDbType.Timestamp, updatedate);
 
             _connection.Open();
