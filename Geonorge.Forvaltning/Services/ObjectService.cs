@@ -1242,7 +1242,7 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
-        public async Task<List<object>> PostObjectsData(int datasetId, List<object> objekts)
+        public async Task<int> PostObjectsData(int datasetId, List<object> objekts)
         {
 
             User user = await _authService.GetUserFromSupabaseAsync();
@@ -1267,6 +1267,8 @@ namespace Geonorge.Forvaltning.Services
             {
                 throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
             }
+
+            int rowsAffected = 0;
 
             try 
             { 
@@ -1336,7 +1338,7 @@ namespace Geonorge.Forvaltning.Services
 
                 cmd.CommandText = sb.ToString();
 
-                await cmd.ExecuteNonQueryAsync();
+                rowsAffected = await cmd.ExecuteNonQueryAsync();
 
                 _connection.Close();
             }
@@ -1349,8 +1351,7 @@ namespace Geonorge.Forvaltning.Services
                  throw new Exception("Feil ved lagring av data" + e);
             }
 
-            //todo return added rows number
-            return new List<object>();
+            return rowsAffected;
         }
 
 
@@ -1430,6 +1431,6 @@ namespace Geonorge.Forvaltning.Services
         Task<object> PostObjectData(int id, object objekt);
         Task RequestAuthorizationAsync();
         Task<object> DeleteAllObjectData(int datasetId);
-        Task<List<object>> PostObjectsData(int datasetId, List<object> objekts);
+        Task<int> PostObjectsData(int datasetId, List<object> objekts);
     }
 }

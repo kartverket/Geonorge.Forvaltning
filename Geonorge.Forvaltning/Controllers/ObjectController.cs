@@ -58,12 +58,12 @@ namespace Geonorge.Forvaltning.Controllers
         [HttpPost("all/{datasetId:int}", Name = "PostAllObjectData")]
         public async Task<IActionResult> PostAllObjectData(int datasetId, [FromBody] List<object> objekts)
         {
-            List<object> data = new List<object>();
+            int rowsAffected = 0;
             try
             {
-                data = await _objectService.PostObjectsData(datasetId, objekts);
+                rowsAffected = await _objectService.PostObjectsData(datasetId, objekts);
 
-                return Ok(data);
+                return Ok(rowsAffected);
             }
             catch (Exception ex)
             {
