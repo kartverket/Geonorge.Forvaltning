@@ -1123,8 +1123,12 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
 
                 var datatype = GetSqlDataType(prop.DataType);
-                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
+                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric && value != "")
                     value = Convert.ToDouble(value);
+
+                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric && value == "")
+                    value = DBNull.Value;
+
 
                 cmd.Parameters.AddWithValue("@"+ prop.ColumnName, datatype, value);
             }
