@@ -1123,12 +1123,11 @@ namespace Geonorge.Forvaltning.Services
                 sql = sql + prop.ColumnName + " = @"+ prop.ColumnName + ",";
 
                 var datatype = GetSqlDataType(prop.DataType);
-                if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric && value != "")
-                    value = Convert.ToDouble(value);
 
                 if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric && value == "")
                     value = DBNull.Value;
-
+                else if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric && IsNumeric(value.ToString()))
+                     value = Convert.ToDouble(value);
 
                 cmd.Parameters.AddWithValue("@"+ prop.ColumnName, datatype, value);
             }
@@ -1164,6 +1163,8 @@ namespace Geonorge.Forvaltning.Services
 
             return null;
         }
+
+        public static bool IsNumeric(string value) => double.TryParse(value, out _);
 
         public async Task<object> DeleteObjectData(int datasetId, int objektId)
         {
