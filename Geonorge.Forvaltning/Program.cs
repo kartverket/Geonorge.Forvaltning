@@ -177,7 +177,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapHub<MessageHub>("/hubs/message");
+//app.MapHub<MessageHub>("/hubs/message");
 
 app.Run();
 
