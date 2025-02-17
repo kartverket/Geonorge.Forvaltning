@@ -1080,36 +1080,36 @@ namespace Geonorge.Forvaltning.Services
             bool isContributorDataset = objektMeta.Contributors != null ? objektMeta.Contributors.Contains(user.OrganizationNumber) : false;
             bool isContributorObject = false;
 
-            foreach (var access in objektMeta.ForvaltningsObjektPropertiesMetadata)
+            var sql = @$"SELECT array_to_string(contributor_org, ',') as contributor_org  FROM t_{id} WHERE id=@id";
+            _connection.Open();
+
+            await using var command = new NpgsqlCommand();
+            command.Parameters.AddWithValue("@id", idObjekt);
+            command.Connection = _connection;
+            command.CommandText = sql;
+
+            await using var reader = await command.ExecuteReaderAsync();
+
+            if (reader.HasRows)
             {
-                var accessByProperties = _context.AccessByProperties.Where(a => a.ForvaltningsObjektPropertiesMetadata.Id == access.Id).ToList();
-                if (accessByProperties == null)
-                    continue;
+                await reader.ReadAsync();
+                var contributorOrgs = reader.GetValue(0);
 
-                var objectExists = objektUpdate.ContainsKey(access.ColumnName);
-                if (!objectExists)
-                    continue;
-
-                var valueData = GetObjectValue(objektUpdate[access.ColumnName]);
-
-                if (valueData != null)
+                if (contributorOrgs != null && !string.IsNullOrEmpty(contributorOrgs.ToString()))
                 {
-                    string data = valueData.ToString();
-
-                    if (accessByProperties.Any(a => a.Value == data && a.Contributors.Contains(user.OrganizationNumber)))
-                    {
-                        isContributorObject = true;
-                        break;
-                    }
+                    var contributorOrganizations = contributorOrgs.ToString().Split(",");
+                    isContributorObject = contributorOrganizations.Contains(user.OrganizationNumber);
                 }
             }
+            reader.Close();
+            _connection.Close();
 
             if (!isAdmin && !isContributorDataset && !isContributorObject)
             {
                 throw new UnauthorizedAccessException("Bruker har ikke tilgang til objekt-data");
             }
 
-            var sql = "UPDATE " + objektMeta.TableName + " SET ";
+            sql = "UPDATE " + objektMeta.TableName + " SET ";
 
             using var cmd = new NpgsqlCommand();
 
