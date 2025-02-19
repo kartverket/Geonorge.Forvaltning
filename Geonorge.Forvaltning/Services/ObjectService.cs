@@ -813,7 +813,7 @@ namespace Geonorge.Forvaltning.Services
             return null;
         }
 
-        public async Task<object> GetObjects(int datasetId)
+        public async Task<object> GetObjects(int datasetId, int? objectId = null)
         {
             var user = await _authService.GetUserFromSupabaseAsync();
 
@@ -838,7 +838,7 @@ namespace Geonorge.Forvaltning.Services
             var sql = @$"
             SELECT row_to_json(row) FROM (
                 SELECT id,{string.Join(",",columns)}, geometry, contributor_org, viewer_org FROM public.t_{datasetId}
-                WHERE (owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}'] )
+                WHERE {(objectId.HasValue ? "id=" + objectId.Value + " AND " : "")}  (owner_org = '{user.OrganizationNumber}' OR contributor_org @> ARRAY['{user.OrganizationNumber}'] OR viewer_org @> ARRAY['{user.OrganizationNumber}'] )
                 ORDER BY id DESC
             ) AS row;
             ";
@@ -1447,7 +1447,7 @@ namespace Geonorge.Forvaltning.Services
         Task<object> DeleteObjectData(int datasetId, int objektId);
         Task<DataObject?> EditDefinition(int id, ObjectDefinitionEdit objekt);
         Task<object> EditTag(int datasetId, int id, string tag);
-        Task <object>GetObjects(int datasetId);
+        Task <object>GetObjects(int datasetId, int? objectId = null);
         Task<object> PutObjectData(int id, object objekt);
         Task<object> PostObjectData(int id, object objekt);
         Task RequestAuthorizationAsync();

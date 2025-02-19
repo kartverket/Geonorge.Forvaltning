@@ -28,11 +28,13 @@ public class MessageHub : Hub<IMessageClient>
 
     public async Task SendObjectCreated(string user, ObjectCreated message)
     {
+        message.Object = null; // Todo get id from object
         await Clients.AllExcept([user]).ReceiveObjectCreated(message);
     }
 
     public async Task SendObjectUpdated(string user, ObjectUpdated message)
     {
+        message.Properties = null; //do not send properties raw to clients, let clients fetch them from server, to avoid sending sensitive data, also could be done here if access to user tokens
         await Clients.AllExcept([user]).ReceiveObjectUpdated(message);
     }
 
