@@ -1,7 +1,9 @@
 ﻿using Geonorge.Forvaltning.Models.Api.Messaging;
 using Geonorge.Forvaltning.Utils;
 using Microsoft.AspNetCore.SignalR;
+using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 
 namespace Geonorge.Forvaltning.Services.Message;
 
@@ -28,11 +30,14 @@ public class MessageHub : Hub<IMessageClient>
 
     public async Task SendObjectCreated(string user, ObjectCreated message)
     {
+        var objekt = GetObjectWithOnlyId(message.Object);
+        message.Object = objekt; //do not send properties raw to clients
         await Clients.AllExcept([user]).ReceiveObjectCreated(message);
     }
 
     public async Task SendObjectUpdated(string user, ObjectUpdated message)
     {
+        message.Properties = null; //do not send properties raw to clients, let clients fetch them from server, to avoid sending sensitive data, also could be done here if access to user tokens
         await Clients.AllExcept([user]).ReceiveObjectUpdated(message);
     }
 
@@ -113,5 +118,13 @@ public class MessageHub : Hub<IMessageClient>
             .Get();
 
         return new ConcurrentStack<string>(colors);
+    }
+
+    private JsonObject GetObjectWithOnlyId(JsonObject objekt)
+    {
+        var id = objekt["id"];
+        objekt.ToList().ForEach(property => objekt.Remove(property.Key));
+        objekt.Add("id", id);
+        return objekt;
     }
 }
