@@ -112,7 +112,7 @@ namespace Geonorge.Forvaltning.Services
                     {
                         item.AllowedValues = null;
                     }
-                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber, AllowedValues = item.AllowedValues, Hidden = item.Hidden });
+                    metadata.ForvaltningsObjektPropertiesMetadata.Add(new ForvaltningsObjektPropertiesMetadata { Name = item.Name, DataType = item.DataType, ColumnName = "c_" + col, OrganizationNumber = user.OrganizationNumber, AllowedValues = item.AllowedValues, Hidden = item.Hidden, PropertyOrder = col });
                     col++;
                 }
                 _context.ForvaltningsObjektMetadata.Add(metadata);
@@ -238,9 +238,10 @@ namespace Geonorge.Forvaltning.Services
                     _context.SaveChanges();
                 }
 
+                var propertyIndex = 1;
+
                 foreach (var item in objekt.Properties)
                 {
-
                     var sqlDataType = "text";
                     if (item.DataType.Contains("bool"))
                         sqlDataType = "boolean";
@@ -303,6 +304,7 @@ namespace Geonorge.Forvaltning.Services
                             DataType = item.DataType,
                             ColumnName = columnName,
                             Hidden = item.Hidden,
+                            PropertyOrder = propertyIndex,
                             AllowedValues = item.AllowedValues
                         });
 
@@ -315,6 +317,7 @@ namespace Geonorge.Forvaltning.Services
                         //Datatype has changed?
                         var dataType = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).Select(co => co.DataType).FirstOrDefault();
                         var columnName = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).Select(co => co.ColumnName).FirstOrDefault();
+                        
                         if (dataType != item.DataType)
                         {
                             var sql = "ALTER TABLE " + current.TableName + " ALTER COLUMN " + columnName + " SET DATA TYPE " + sqlDataType + ";";
@@ -332,6 +335,7 @@ namespace Geonorge.Forvaltning.Services
                             _context.SaveChanges();
 
                         }
+
                         //Property name has changed?
                         var property = current.ForvaltningsObjektPropertiesMetadata.Where(c => c.Id == item.Id).FirstOrDefault();
                         if (item.Name != property.Name)
@@ -381,7 +385,12 @@ namespace Geonorge.Forvaltning.Services
                             _context.SaveChanges();
 
                         }
+
+                        property.PropertyOrder = propertyIndex;
+                        _context.SaveChanges();
                     }
+
+                    propertyIndex++;
                 }
             }
             catch (NpgsqlException ex)
