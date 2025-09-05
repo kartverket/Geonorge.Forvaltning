@@ -981,13 +981,11 @@ namespace Geonorge.Forvaltning.Services
                 var value = GetObjectValue(objektInsert[prop.ColumnName]);
                 sql = sql + "@" + prop.ColumnName + ",";
                 var datatype = GetSqlDataType(prop.DataType);
+
                 if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
-                {
-                    if (value.ToString() != "")
-                        value = Convert.ToDouble(value);
-                    else
-                        value = DBNull.Value;
-                }
+                    value = value.ToString() != "" ? Convert.ToDouble(value) : DBNull.Value;
+                else if (datatype == NpgsqlTypes.NpgsqlDbType.TimestampTz && DateTimeOffset.TryParse(value.ToString(), out var dto))
+                    value = dto.UtcDateTime;
 
                 cmd.Parameters.AddWithValue("@" + prop.ColumnName, datatype, value);
             }
@@ -1136,9 +1134,11 @@ namespace Geonorge.Forvaltning.Services
                 if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric && value == "")
                     value = DBNull.Value;
                 else if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric && IsNumeric(value.ToString()))
-                     value = Convert.ToDouble(value);
+                    value = Convert.ToDouble(value);
+                else if (datatype == NpgsqlTypes.NpgsqlDbType.TimestampTz && DateTimeOffset.TryParse(value.ToString(), out var dto))
+                    value = dto.UtcDateTime;
 
-                cmd.Parameters.AddWithValue("@"+ prop.ColumnName, datatype, value);
+                cmd.Parameters.AddWithValue("@" + prop.ColumnName, datatype, value);
             }
 
             var editor = user.Email;
@@ -1331,13 +1331,11 @@ namespace Geonorge.Forvaltning.Services
 
                         var value = GetObjectValue(objektInsert[prop.ColumnName]);
                         var datatype = GetSqlDataType(prop.DataType);
+
                         if (datatype == NpgsqlTypes.NpgsqlDbType.Numeric)
-                        {
-                            if (value.ToString() != "")
-                                value = Convert.ToDouble(value);
-                            else
-                                value = DBNull.Value;
-                        }
+                            value = value.ToString() != "" ? Convert.ToDouble(value) : DBNull.Value;
+                        else if (datatype == NpgsqlTypes.NpgsqlDbType.TimestampTz && DateTimeOffset.TryParse(value.ToString(), out var dto))
+                            value = dto.UtcDateTime;
 
                         cmd.Parameters.AddWithValue("@" + parameterName, datatype, value);
                     }
@@ -1392,7 +1390,7 @@ namespace Geonorge.Forvaltning.Services
             else if (dataType.Contains("numeric"))
                 return NpgsqlTypes.NpgsqlDbType.Numeric;
             else if (dataType.Contains("timestamp"))
-                return NpgsqlTypes.NpgsqlDbType.Timestamp;
+                return NpgsqlTypes.NpgsqlDbType.TimestampTz;
 
             return NpgsqlTypes.NpgsqlDbType.Text;
         }
