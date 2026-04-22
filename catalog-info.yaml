@@ -1,27 +1,26 @@
-apiVersion: "backstage.io/v1alpha1"
-kind: "Component"
+apiVersion: backstage.io/v1alpha1
+kind: Component
 metadata:
-  name: "Geonorge.Forvaltning"
+  name: Geonorge.Forvaltning
   tags:
-  - "public"
+    - public
 spec:
-  type: "service"
-  lifecycle: "production"
-  owner: "datadeling_og_distribusjon"
-  system: "geonorge"
-  providesApis:
-  - "Geonorge.Forvaltning-api"
+  type: service
+  lifecycle: production
+  owner: group:default/geonorge
+  system: system:default/geonorge
+
 ---
-apiVersion: "backstage.io/v1alpha1"
-kind: "API"
+apiVersion: backstage.io/v1alpha1
+kind: API
 metadata:
-  name: "Geonorge.Forvaltning-api"
+  name: Geonorge.Forvaltning-api
   tags:
-  - "public"
+    - public
 spec:
-  type: "openapi"
-  lifecycle: "production"
-  owner: "datadeling_og_distribusjon"
+  type: openapi
+  lifecycle: production
+  owner: group:default/geonorge
   definition: |
     openapi: "3.0.0"
     info:
