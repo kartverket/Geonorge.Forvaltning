@@ -2,6 +2,7 @@
   "profiles": {
     "Geonorge.Forvaltning": {
       "commandName": "Project",
+      "launchBrowser": true,
       "launchUrl": "docs",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Local"

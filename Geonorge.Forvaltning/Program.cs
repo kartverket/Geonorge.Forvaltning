@@ -6,7 +6,7 @@ using Geonorge.Forvaltning.Services.Message;
 using LoggingWithSerilog.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Serilog;
 using System.Reflection;
 using System.Text.Json;
@@ -79,32 +79,19 @@ services.AddSwaggerGen(options =>
         Description = "Supabase ANON KEY",
     });
 
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                },
-                Scheme = "oauth2",
-                Name = "Bearer",
-                In = ParameterLocation.Header
-            },
+            new OpenApiSecuritySchemeReference("Bearer", document),
             new List<string>()
         }
     });
 
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
     {
         {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Apikey" }
-            },
-            Array.Empty<string>()
+            new OpenApiSecuritySchemeReference("Apikey", document),
+            new List<string>()
         }
     });
 });
